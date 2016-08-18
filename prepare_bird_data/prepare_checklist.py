@@ -13,7 +13,11 @@ if __name__ == '__main__':
     
     print 'Reading in data ...'
 
-    df = pandas.read_csv('data/checklists_2006.csv', sep=',', header='infer', na_values=['X', '?'], na_filter=True, keep_default_na=True)
+    year = 2005
+    data_path = '/nfs/stak/students/l/liuli/liping/ebird/ebird_2014/' + str(year) + '/checklists.csv' 
+    print 'Data path is ' + data_path
+
+    df = pandas.read_csv(data_path, sep=',', header='infer', na_values=['X', '?'], na_filter=True, keep_default_na=True)
 
     
     print 'Filling NaN values as 1 ...'
@@ -30,5 +34,5 @@ if __name__ == '__main__':
     obs = df.groupby('INDEX').aggregate(numpy.sum)
 
     print 'Writing data to a CSV file...'
-    obs.to_csv('data/great_matrix.csv')
+    obs.to_csv('../data/aggregated_obs_' + str(year) + '.csv')
 
