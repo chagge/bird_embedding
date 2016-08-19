@@ -8,12 +8,17 @@ Created on Aug 16, 2016
 import pandas
 import stixel_define as sd
 import numpy
+import sys
 
 if __name__ == '__main__':
     
     print 'Reading in data ...'
 
-    year = 2005
+    if len(sys.argv) < 2:
+        error('Not enough arguments')
+
+    year = sys.argv[1]
+
     data_path = '/nfs/stak/students/l/liuli/liping/ebird/ebird_2014/' + str(year) + '/checklists.csv' 
     print 'Data path is ' + data_path
 

@@ -3,3 +3,6 @@
 *.project
 *.pydevproject
 *.swp
+sub_job.sh
+*.log
+*.err
