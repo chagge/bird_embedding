@@ -6,3 +6,4 @@
 sub_job.sh
 *.log
 *.err
+*.npy
