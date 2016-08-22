@@ -27,7 +27,8 @@ num_long = end_long - start_long
 
 def get_stixel_index(year, day, latitude, longitude):
     
-    day_ind = (year - start_year) * 365 + leap_counts[(year - start_year).tolist()] + day - 1
+    #day_ind = (year - start_year) * 365 + leap_counts[(year - start_year).tolist()] + day - 1
+    day_ind = day - 1
     lat_ind = latitude.apply(lambda x: int(math.floor(x - start_lat)))
     long_ind = longitude.apply(lambda x: int(math.floor(x - start_long)))
     
