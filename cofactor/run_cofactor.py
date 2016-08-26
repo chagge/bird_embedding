@@ -32,35 +32,35 @@ def load_sparse_csr(filename):
 
 # read train data here
 print('Read in data ...')
-#train_data = pd.read_csv('../data/aggregated_obs_2005.csv')
-#vad_data = pd.read_csv('../data/aggregated_obs_2006.csv')
-#test_data = pd.read_csv('../data/aggregated_obs_2007.csv')
-#
-#print('Find the common stixel set ...')
-#train_index = train_data['INDEX']
-#vad_index = vad_data['INDEX']
-#test_index = test_data['INDEX']
-#
-#common_index = set(train_index).intersection(set(vad_index)).intersection(set(test_index))
-#common_index = list(common_index)
-#
-#print('Get observation matrices...')
-#def select_obs(data, stixel_set):
-#    selector = [list(data['INDEX']).index(x) for x in common_index]
-#    obs = data.iloc[selector, 1:]
-#    return sparse.csr_matrix(obs[obs > 0].as_matrix().astype(np.int8))
-#    
-#train_data = select_obs(train_data, common_index)
-#vad_data = select_obs(vad_data, common_index)
-#test_data = select_obs(test_data, common_index)
+train_data = pd.read_csv('../data/aggregated_obs_2005.csv')
+vad_data = pd.read_csv('../data/aggregated_obs_2006.csv')
+test_data = pd.read_csv('../data/aggregated_obs_2007.csv')
 
-#save_sparse_csr('../data/obs_train', train_data)
-#save_sparse_csr('../data/obs_vad', vad_data)
-#save_sparse_csr('../data/obs_test', test_data)
+print('Find the common stixel set ...')
+train_index = train_data['INDEX']
+vad_index = vad_data['INDEX']
+test_index = test_data['INDEX']
 
-train_data = load_sparse_csr('../data/obs_train.npz')
-vad_data = load_sparse_csr('../data/obs_vad.npz')
-test_data = load_sparse_csr('../data/obs_test.npz')
+common_index = set(train_index).intersection(set(vad_index)).intersection(set(test_index))
+common_index = list(common_index)
+
+print('Get observation matrices...')
+def select_obs(data, stixel_set):
+    selector = [list(data['INDEX']).index(x) for x in common_index]
+    obs = data.iloc[selector, 1:]
+    return sparse.csr_matrix(obs[obs > 0].as_matrix().astype(np.int8))
+    
+train_data = select_obs(train_data, common_index)
+vad_data = select_obs(vad_data, common_index)
+test_data = select_obs(test_data, common_index)
+
+save_sparse_csr('../data/obs_train', train_data)
+save_sparse_csr('../data/obs_vad', vad_data)
+save_sparse_csr('../data/obs_test', test_data)
+
+#train_data = load_sparse_csr('../data/obs_train.npz')
+#vad_data = load_sparse_csr('../data/obs_vad.npz')
+#test_data = load_sparse_csr('../data/obs_test.npz')
 
 n_users, n_items = train_data.shape
 
@@ -82,61 +82,61 @@ plt.ylabel('Number of users who watched this movie')
 plt.xlabel('Movie rank by number of watches')
 pass
 
-#def _coord_batch(lo, hi, train_data):
-#    rows = []
-#    cols = []
-#    for u in xrange(lo, hi):
-#        for w, c in itertools.permutations(train_data[u].nonzero()[1], 2):
-#            rows.append(w)
-#            cols.append(c)
-#    np.save(os.path.join(DATA_DIR, 'coo_%d_%d.npy' % (lo, hi)),
-#            np.concatenate([np.array(rows)[:, None], np.array(cols)[:, None]], axis=1))
-#    pass
-#
-#
-#from joblib import Parallel, delayed
-#
-#batch_size = 5000
-#
-#start_idx = range(0, n_users, batch_size)
-#end_idx = start_idx[1:] + [n_users]
-#
-#Parallel(n_jobs=8)(delayed(_coord_batch)(lo, hi, train_data) for lo, hi in zip(start_idx, end_idx))
-#pass
-#
-#
-#X = sparse.csr_matrix((n_items, n_items), dtype='float32')
-#
-#for lo, hi in zip(start_idx, end_idx):
-#    coords = np.load(os.path.join(DATA_DIR, 'coo_%d_%d.npy' % (lo, hi)))
-#    
-#    rows = coords[:, 0]
-#    cols = coords[:, 1]
-#    
-#    tmp = sparse.coo_matrix((np.ones_like(rows), (rows, cols)), shape=(n_items, n_items), dtype='float32').tocsr()
-#    X = X + tmp
-#    
-#    print("User %d to %d finished" % (lo, hi))
-#    sys.stdout.flush()
-#
-#np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_data.npy'), X.data)
-#np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indices.npy'), X.indices)
-#np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indptr.npy'), X.indptr)
+def _coord_batch(lo, hi, train_data):
+    rows = []
+    cols = []
+    for u in xrange(lo, hi):
+        for w, c in itertools.permutations(train_data[u].nonzero()[1], 2):
+            rows.append(w)
+            cols.append(c)
+    np.save(os.path.join(DATA_DIR, 'coo_%d_%d.npy' % (lo, hi)),
+            np.concatenate([np.array(rows)[:, None], np.array(cols)[:, None]], axis=1))
+    pass
 
 
-#float(X.nnz) / np.prod(X.shape)
+from joblib import Parallel, delayed
 
-# or co-occurrence matrix from the entire user history
-dir_predix = DATA_DIR
+batch_size = 5000
+
+start_idx = range(0, n_users, batch_size)
+end_idx = start_idx[1:] + [n_users]
+
+Parallel(n_jobs=8)(delayed(_coord_batch)(lo, hi, train_data) for lo, hi in zip(start_idx, end_idx))
+pass
 
 
-data = np.load(os.path.join(dir_predix, 'coordinate_co_binary_data.npy'))
-indices = np.load(os.path.join(dir_predix, 'coordinate_co_binary_indices.npy'))
-indptr = np.load(os.path.join(dir_predix, 'coordinate_co_binary_indptr.npy'))
+X = sparse.csr_matrix((n_items, n_items), dtype='float32')
 
-X = sparse.csr_matrix((data, indices, indptr), shape=(n_items, n_items))
+for lo, hi in zip(start_idx, end_idx):
+    coords = np.load(os.path.join(DATA_DIR, 'coo_%d_%d.npy' % (lo, hi)))
+    
+    rows = coords[:, 0]
+    cols = coords[:, 1]
+    
+    tmp = sparse.coo_matrix((np.ones_like(rows), (rows, cols)), shape=(n_items, n_items), dtype='float32').tocsr()
+    X = X + tmp
+    
+    print("User %d to %d finished" % (lo, hi))
+    sys.stdout.flush()
+
+np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_data.npy'), X.data)
+np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indices.npy'), X.indices)
+np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indptr.npy'), X.indptr)
+
 
 float(X.nnz) / np.prod(X.shape)
+
+## or co-occurrence matrix from the entire user history
+#dir_predix = DATA_DIR
+#
+#
+#data = np.load(os.path.join(dir_predix, 'coordinate_co_binary_data.npy'))
+#indices = np.load(os.path.join(dir_predix, 'coordinate_co_binary_indices.npy'))
+#indptr = np.load(os.path.join(dir_predix, 'coordinate_co_binary_indptr.npy'))
+#
+#X = sparse.csr_matrix((data, indices, indptr), shape=(n_items, n_items))
+#
+#float(X.nnz) / np.prod(X.shape)
 
 def get_row(Y, i):
     lo, hi = Y.indptr[i], Y.indptr[i + 1]
@@ -183,7 +183,7 @@ float(M_ns.nnz) / np.prod(M_ns.shape)
 
 
 scale = 0.03
-n_components = 100
+n_components = 20
 max_iter = 20
 n_jobs = 8
 lam_theta = lam_beta = 1e-5 * scale
@@ -198,11 +198,12 @@ coder = cofacto.CoFacto(n_components=n_components, max_iter=max_iter, batch_size
                         random_state=98765, save_params=True, save_dir=save_dir, early_stopping=True, verbose=True, 
                         lam_theta=lam_theta, lam_beta=lam_beta, lam_gamma=lam_gamma, c0=c0, c1=c1)
 
-coder.fit(train_data, M_ns, vad_data=vad_data, batch_users=5000, k=100)
+coder.fit(train_data, M_ns, vad_data=vad_data, batch_users=5000, k=n_components)
 
 test_data.data = np.ones_like(test_data.data)
 
-n_params = len(glob.glob(os.path.join(save_dir, '*.npz')))
+n_params = len(glob.glob(os.path.join(save_dir, 'CoFacto_K' + str(n_components) + '_iter*.npz')))
+#n_params = len(glob.glob(os.path.join(save_dir, '*.npz')))
 
 params = np.load(os.path.join(save_dir, 'CoFacto_K%d_iter%d.npz' % (n_components, n_params - 1)))
 U, V = params['U'], params['V']
