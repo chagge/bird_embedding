@@ -1,4 +1,6 @@
 '''
+This code reads in ebird data and aggregate bird observations by 1degree lat x 1degree long x 1 day stixels
+for all bird species
 Created on Aug 16, 2016
 
 @author: liuli
