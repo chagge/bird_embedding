@@ -17,13 +17,11 @@ if __name__ == '__main__':
 
     # selection conditions for rows
     # day range =  180 ~ 209
-    # state = PA
+    # area range = lat: 39.716 ~ 42, long: -80.5 ~ -74.3
     # individual checklist
 
     # selection conditions for columns
-    # localtion (LONG LAT)
-    # travel distance
-    # duration
+    # shown in the variable "flag"
 
     year = 2014 
 
@@ -33,9 +31,12 @@ if __name__ == '__main__':
     df = pandas.read_csv(data_path, sep=',', header='infer', na_values=['X', '?'], na_filter=True, keep_default_na=True)
 
 
-    flag = (108 <= df['DAY']) & (df['DAY'] < 210) 
+    flag = ((108 <= df['DAY']) & (df['DAY'] < 210) 
+          & ((39 + 43.0/60) < df['LATITUDE']) & (df['LATITUDE'] < 42)
+          & (-(80 + 31.0/60) < df['LONGITUDE']) & (df['LONGITUDE'] < -74.3))
     
-    df = df.loc(flag, 'LAT', 'LONG')
+    df = df.loc[flag, ['LATITUDE','LONGITUDE','DAY','TIME', 'COUNT_TYPE', 'EFFORT_HRS', 'EFFORT_DISTANCE_KM', 
+                     'EFFORT_AREA_HA', 'NUMBER_OBSERVERS', 'PRIMARY_CHECKLIST_FLAG', 'Contopus_virens']]
 
-    obs.to_csv('../data/obs_subset' + str(year) + '_range180-210' + '.csv')
+    df.to_csv('../data/obs_subset_y' + str(year) + '_d180-210_ewp' + '.csv')
 
