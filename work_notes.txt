@@ -2,3 +2,11 @@ Two  directions to consider:
 
 1. rich representation of users. Especially, users have strong temporal-spatial relations. We will explore of how to use these features and how to smooth the embedding over the temporal-spatial space.   
 2. Need stronger explanatory power of the model, so we can explain the community of birds.   
+
+
+TODO: 
+
+The next step is to use exponential family embedding to test the data 
+Plot the embedding of birds
+
+
