@@ -7,6 +7,6 @@ Two  directions to consider:
 TODO: 
 
 The next step is to use exponential family embedding to test the data 
-Plot the embedding of birds
+[Done] Plot the embedding of birds
 
 

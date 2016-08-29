@@ -1,0 +1,5 @@
+This fold contains data generated from running cofactor model on the matrix of stixel-species co-occurances. 
+
+1. The files aggregated_obs_20xx are obtained by grouping observations by stixels and binarizing values 
+2. Most other files are intermediate result
+3. Final result are stored in files in ML20M_ns1_scale*. The V matrix of the last iteration is the embedding result.

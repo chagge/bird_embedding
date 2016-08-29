@@ -8,3 +8,4 @@ sub_job.sh
 *.err
 *.npy
 *.npz
+lib/
