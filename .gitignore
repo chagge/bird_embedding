@@ -3,7 +3,7 @@
 *.project
 *.pydevproject
 *.swp
-sub_job.sh
+job.sh
 *.log
 *.err
 *.npy
