@@ -1,0 +1,8 @@
+Pipe line of preparing data
+
+1. subset_data.py :  take a subset of eBird checklists 
+2. extract_counts.py :  fill X values with the mean of positive observations, and extract count matrix from the data.  
+3. generate_contexts.py :  generate contexts of these counts  
+4. extract_obs_covarates.py : extract covariates from each checklist 
+
+The data ready for use has three matrices: count matrix, context matrix, and observation feature matrix
