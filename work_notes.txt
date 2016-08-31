@@ -6,8 +6,11 @@ Two  directions to consider:
 
 TODO: 
 
-Test P-EMB with a small dataset
-The next step is to use exponential family embedding to test the data 
+[Done] Run cofactor model on data groupped by stixels 
 [Done] Plot the embedding of birds
+
+Derive the inference method for P-EMB with exposure model 
+Test P-EMB with a small dataset
+
 
 
