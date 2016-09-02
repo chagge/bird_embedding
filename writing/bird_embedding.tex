@@ -23,7 +23,7 @@ The eBird data consists of checklists of bird observations. The figure below sho
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{ebird-checklist-manhattan.png}
+    \includegraphics[width=0.8\textwidth]{figures/ebird-checklist-manhattan.png}
     \caption{eBird checklist submissions on Manhattan island. (I believe) Checklists are aggregated by a number of sites for better plot. The location at CU is mistakenly labeled as Morningside Park. Zoom in for better view. }
     \label{fig1}
 \end{figure}
@@ -86,6 +86,39 @@ where $f_i$ is a function that maps the covariates $\mathbf{v}_i$ at location $i
 
 The function $f_j (\mathbf{v}_i)$ should be learned first, so the species distribution is explained by environmental covariates first. The embedding model is used to explain the part not explained by $f$. Compared with joint learning of $f$ and $\theta$, there are two benefits from this considerations: a) the embedding part can focus more on interactions among bird species, and b) learning is computationally more efficient. 
 
+
+\section{Inference}
+
+In this second, we develop a varitional inference method to infer parameters of the model. 
+
+\subsection{ E-step: calculating posterior distribution of $a_{ij}$}
+
+In this subsection, we calculate the posterior distribution of $a_{ij}$.
+\begin{eqnarray}
+q_{ij}^{0} &=& p(a_{ij} = 0 | y_{ij} > 0, \lambda_{ij}, u_{ij}) =  0 \\
+q_{ij}^{1} &=& p(a_{ij} = 1 | y_{ij} > 0, \lambda_{ij}, u_{ij}) =  1 \\[10pt]
+q_{ij}^{0} &=& p(a_{ij} = 0 | y_{ij} = 0, \lambda_{ij}, u_{ij}) =  \frac{1 - u_{ij}}{1 - u_{ij} + u_{ij}\exp(-\lambda_{ij})} \\
+q_{ij}^{1} &=& p(a_{ij} = 1 | y_{ij} = 0, \lambda_{ij}, u_{ij}) =  \frac{u_{ij}\exp(-\lambda_{ij})}{1 - u_{ij} + u_{ij}\exp(-\lambda_{ij})}
+\end{eqnarray}
+
+
+\subsection{M-step: maximizing the log-likelihood with respect to model parameter}
+
+In the M-step, we want to maximize the following objective. 
+\begin{eqnarray}
+LL(\theta, \beta) &=& \sum_{ij} E_{a_{ij}} \Big[\log p\big(y_{ij} | a_{ij} \exp(\theta^\top \mathbf{c}_{ij})\big) + \log p\big(a_{ij} | \beta_j^\top \mathbf{x}_{ij}\big)\Big] \nonumber\\
+&=& \sum_{ij}  - q_{ij}^0 \log (1 +  \exp(\beta_j^\top \mathbf{x}_i)) + q_{ij}^1 \Big( y_{ij}\theta_{j}^\top \mathbf{c}_{ij} - \exp(\theta_{j}^\top \mathbf{c}_{ij}) - \log \big(1 + \exp( - \beta_j^\top \mathbf{x}_i) \big) \Big) \nonumber
+\end{eqnarray}
+
+Take derivatives with respect to the parameters. 
+\begin{eqnarray}
+\frac{\partial LL(\theta, \beta)}{\partial \theta_j} &=& q_{ij}^1 y_{ij} \mathbf{c}_{ij} - \exp(
+\theta_j^\top \mathbf{c}_{ij}) \mathbf{c}_{ij} \\
+\frac{\partial LL(\theta, \beta)}{\partial \beta_j} &=& - q_{ij}^0 \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij}) \mathbf{x}_{ij} + q_{ij}^1 (1 - \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij})) \mathbf{x}_{ij}
+\end{eqnarray}
+
+
+
 \section{Research Directions}
 
 Assumption: embeddings at similar time-locations are similar but different. Can we use a $\theta_{ij}$ for each checklist $i$ and species $j$ and put a GP prior over $\theta_{ij}$-s to encourage strong correlation among $\theta_{ij}$-s at neighboring locations?  
@@ -96,10 +129,12 @@ Can we predict the presence/absence of species?
 
 \section{TODO list}
 \begin{itemize}
-\item Derivation of the inference method
+\item [Done] Derive the inference method
 \item Run a small dataset with the P-EMB model
+\item Code the algorithm
 \item ...
 \end{itemize}
 
 
 \end{document}
+
