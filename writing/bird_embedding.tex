@@ -112,9 +112,9 @@ LL(\theta, \beta) &=& \sum_{ij} E_{a_{ij}} \Big[\log p\big(y_{ij} | a_{ij} \exp(
 
 Take derivatives with respect to the parameters. 
 \begin{eqnarray}
-\frac{\partial LL(\theta, \beta)}{\partial \theta_j} &=& \sum_{ij} q_{ij}^1 y_{ij} \mathbf{c}_{ij} - \exp(
+\frac{\partial LL(\theta, \beta)}{\partial \theta_j} &=& \sum_{i} q_{ij}^1 y_{ij} \mathbf{c}_{ij} - \exp(
 \theta_j^\top \mathbf{c}_{ij}) \mathbf{c}_{ij} \\
-\frac{\partial LL(\theta, \beta)}{\partial \beta_j} &=& \sum_{ij} - q_{ij}^0 \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij}) \mathbf{x}_{ij} + q_{ij}^1 (1 - \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij})) \mathbf{x}_{ij}
+\frac{\partial LL(\theta, \beta)}{\partial \beta_j} &=& \sum_{i} - q_{ij}^0 \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij}) \mathbf{x}_{ij} + q_{ij}^1 (1 - \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij})) \mathbf{x}_{ij}
 \end{eqnarray}
 
 
