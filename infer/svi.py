@@ -57,6 +57,79 @@ def elbo(obs_cov, counts, param, it):
     return dict(obj=obj, grad=grad)
 
 
+def elbo_softplus(obs_cov, counts, param, it):
+    
+    ntuple = counts.shape[0]
+    nspecies = counts.shape[1]
+    ncovar = obs_cov.shape[1]
+
+    theta = param[0 : nspecies * (nspecies - 1)] 
+    beta = param[nspecies * (nspecies - 1) : ]
+
+    # observation probabilities for all checklists x species
+    U = expit(np.dot(obs_cov, beta.reshape((nspecies, ncovar)).T)) 
+    
+    # calculate lambda
+    # fill theta to a matrix that has all diagnals zero
+    alpha = 1.0 
+    D = np.eye(nspecies, dtype=bool)
+    A = np.zeros((nspecies, nspecies))
+    A[~D] = theta
+    Lamb = np.dot(counts, A.T) / alpha
+    Lamb[Lamb < 20] = np.log(1 + np.exp(Lamb[Lamb < 20]))
+    Lamb = Lamb * alpha
+
+    if np.sum(np.isnan(Lamb)) > 0:
+        print 'Nan values in Lamb' 
+    #calculate q, the parameter of the variational parameter
+    #Q = None
+    #if Q is None:
+    Q = np.ones((ntuple, nspecies)) 
+    flag = counts == 0
+    Q[flag] = (U[flag] * np.exp(-Lamb[flag])) / (1 - U[flag] + U[flag] * np.exp(-Lamb[flag]))
+
+
+    if np.sum(np.isnan(Q)) > 0:
+        print 'Nan values in Q' 
+
+    Temp = np.dot(counts, A.T) / alpha
+    Temp[Temp <= 20] = np.exp(Temp[Temp <= 20]) / (1 + np.exp(Temp[Temp <= 20])) # all these elements are in (0, 1)
+    Temp[Temp > 20] = 1 
+    
+    Lamb_trunc = Lamb
+    Lamb_trunc[Lamb < 1e-6] = 1e-6
+    M = Q * (counts / Lamb_trunc - 1) * Temp
+
+    if np.sum(np.isnan(M)) > 0:
+        print np.sum(np.isnan(Q))  
+        print np.sum(np.isnan(Lamb))  
+        print np.sum(np.isnan(counts))  
+        print np.sum(np.isnan(Temp)) 
+        print np.min(np.dot(counts, A.T) / alpha) 
+
+        raise Exception('Divided by zero') 
+
+    gllh_theta = np.dot(M.T, counts) 
+    grad_theta = theta - gllh_theta[~D] / ntuple
+
+    gllh_beta =  - np.dot(((1 - Q) * U).T, obs_cov) + np.dot((Q * (1 - U)).T, obs_cov) 
+    grad_beta = beta - gllh_beta.ravel() / ntuple
+
+    #grad_Q = np.log(1 - U[counts == 0]) - (- Lamb[counts == 0] + np.log(U[counts == 0])) + np.log(Q[counts==0]) - np.log(1 - Q[counts == 0]) 
+
+    #return dict(obj=obj, grad_theta=grad_theta, grad_beta=grad_beta, Q=Q, grad_Q = grad_Q)
+    grad = np.r_[grad_theta, grad_beta]
+
+    norm = 0.5 * np.sum(theta * theta) + 0.5 * np.sum(beta * beta)
+    llh = np.sum((1 - Q) * np.log(1 - U) + Q * (counts * np.log(Lamb) - Lamb + np.log(U))) 
+    entropy = - np.sum((1 - Q[Q != 1]) * np.log(1 - Q[Q != 1])) - np.sum(Q[Q != 0] * np.log(Q[Q != 0]))
+    obj = norm - (llh + entropy) / ntuple
+
+    return dict(obj=obj, grad=grad)
+
+
+
+
 
 
 
@@ -70,7 +143,7 @@ def test_gradient(obs_cov, counts):
     # intialize a parameter
     param = np.random.rand(nspecies *(nspecies - 1 + ncovar)) * 1e-4
 
-    res1 = elbo(obs_cov, counts, param)
+    res1 = elbo_softplus(obs_cov, counts, param)
 
     param2 = param.copy()
 
@@ -80,7 +153,7 @@ def test_gradient(obs_cov, counts):
     dbeta = 1e-8 * np.random.rand(nspecies * ncovar)
     param2[nspecies * (nspecies - 1) : ] = param[nspecies * (nspecies - 1) : ] + dbeta
 
-    res2 = elbo(obs_cov, counts, param2) 
+    res2 = elbo_softplus(obs_cov, counts, param2) 
     diffv = res2['obj'] - res1['obj']
     diffp = np.dot(res1['grad'], np.r_[dtheta, dbeta]) 
     print 'value difference is '
@@ -111,7 +184,7 @@ def test_gradient(obs_cov, counts):
 
 if __name__ == "__main__":
 
-    np.random.seed(27)
+    np.random.seed(2)
     data_dir = '../data/subset_pa_201407/'
     obs_cov = np.load(data_dir + 'obs_covariates.npy')
     counts = load_sparse_coo(data_dir + 'counts.npz').toarray()
@@ -124,22 +197,23 @@ if __name__ == "__main__":
 
     param = np.random.rand(nspecies *(nspecies - 1 + ncovar)) * 1e-4
 
-    for it in xrange(1,  100):
+    for it in xrange(1, 100000):
 
-        rind = np.random.randint(0, ntuple, size=100) 
+        rind = np.random.randint(0, ntuple, size=10) 
         
         if it == 2 and False:
             print('---------------------------------------------------------') 
             print(max(param))
-        res = elbo(obs_cov[rind, :], counts[rind, :], param, it)
+        res = elbo_softplus(obs_cov[rind, :], counts[rind, :], param, it)
         grad = res['grad']
         
         if it == 2 and False:
             print('---------------------------------------------------------') 
 
-        param = param - grad / (it + 1e6)
+        param = param - grad / (it + 10)
 
-        #if it % 1 == 0:
-        print 'objective is ' + str(res['obj'])
+        if it % 30 == 0:
+            fullres = elbo_softplus(obs_cov[rind, :], counts[rind, :], param, it)
+            print 'objective is ' + str(fullres['obj'])
 
     

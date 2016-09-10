@@ -62,9 +62,10 @@ The observed count $y_{ij}$ is from Poisson distribution defined as follows.
 \begin{eqnarray}
 y_{ij} &\sim& \mathrm{Poisson}(a_{ij} \lambda_{ij}),
 \end{eqnarray}
-where 
+where the rate $\lambda_{ij}$ can be defined in several ways. The following two examples are defined through exponential function and softplus function. 
 \begin{eqnarray}
-\lambda_{ij} = \exp(\theta_{j}^\top \mathbf{c}_{ij} ),
+\lambda_{ij} &=& \exp(\theta_{j}^\top \mathbf{c}_{ij} ) \label{lambda_exp} \\
+\lambda_{ij} &=& \alpha \log (1 + \exp(\theta_{j}^\top \mathbf{c}_{ij} / \alpha)) \label{lambda_sp}
 \end{eqnarray}
 where the vector $\theta_j$ is a parameter shared by species $j$. 
 
@@ -107,17 +108,17 @@ q_{ij}^{1} &=& p(a_{ij} = 1 | y_{ij} = 0, \lambda_{ij}, u_{ij}) =  \frac{u_{ij}\
 In the M-step, we want to maximize the following objective. 
 \begin{eqnarray}
 LL(\theta, \beta) &=& \sum_{ij} E_{a_{ij}} \Big[\log p\big(y_{ij} | a_{ij} \exp(\theta^\top \mathbf{c}_{ij})\big) + \log p\big(a_{ij} | \beta_j^\top \mathbf{x}_{ij}\big)\Big] \nonumber\\
-&=& \sum_{ij}  - q_{ij}^0 \log (1 +  \exp(\beta_j^\top \mathbf{x}_i)) + q_{ij}^1 \Big( y_{ij}\theta_{j}^\top \mathbf{c}_{ij} - \exp(\theta_{j}^\top \mathbf{c}_{ij}) - \log \big(1 + \exp( - \beta_j^\top \mathbf{x}_i) \big) \Big) \nonumber
+&=& \sum_{ij}  - q_{ij}^0 \log (1 +  \exp(\beta_j^\top \mathbf{x}_i)) + q_{ij}^1 \Big( y_{ij}\log(\lambda_{ij}) - \lambda_{ij} - \log \big(1 + \exp( - \beta_j^\top \mathbf{x}_i) \big) \Big) \nonumber
 \end{eqnarray}
 
 Take derivatives with respect to the parameters. 
 \begin{eqnarray}
-\frac{\partial LL(\theta, \beta)}{\partial \theta_j} &=& \sum_{i} q_{ij}^1 y_{ij} \mathbf{c}_{ij} - \exp(
-\theta_j^\top \mathbf{c}_{ij}) \mathbf{c}_{ij} \\
-\frac{\partial LL(\theta, \beta)}{\partial \beta_j} &=& \sum_{i} - q_{ij}^0 \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij}) \mathbf{x}_{ij} + q_{ij}^1 (1 - \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij})) \mathbf{x}_{ij}
+\nabla_{\theta_j} LL &=& \sum_{i}  q_{ij}^1 \left( y_{ij}/\lambda_{ij} - 1 \right)
+\nabla_{\theta_j} \lambda_{ij} \\
+\nabla_{\beta_j} LL  &=& \sum_{i} - q_{ij}^0 \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij}) \mathbf{x}_{ij} + q_{ij}^1 (1 - \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij})) \mathbf{x}_{ij}
 \end{eqnarray}
 
-
+With the softplus function, $\nabla_{\theta_j} \lambda_{ij} = \frac{\exp(\theta_j^\top \mathbf{c}_{ij} / \alpha) \mathbf{c}_{ij}}{1 + \exp(\theta_j^\top \mathbf{c}_{ij} / \alpha)}$
 
 \section{Research Directions}
 
@@ -130,8 +131,9 @@ Can we predict the presence/absence of species?
 \section{TODO list}
 \begin{itemize}
 \item [Done] Derive the inference method
-\item Run a small dataset with the P-EMB model
-\item Code the algorithm
+\item [Done] Run a small dataset with the P-EMB model
+\item [Mostly done] Code the algorithm
+\item Setup the experiment protocol
 \item ...
 \end{itemize}
 
