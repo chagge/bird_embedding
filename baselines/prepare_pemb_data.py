@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import random
 import sys
 
@@ -19,16 +18,24 @@ sp_mat.data = data
 
 permind = np.arange(0, sp_mat.shape[0])
 random.shuffle(permind)
-train_ind = permind[0:(len(permind) / 2)]
-test_ind = permind[(len(permind) / 2) : len(permind)]
+train_size = len(permind) / 3
+val_size = len(permind) / 3
+test_size = len(permind) - (train_size + val_size)  
+
+train_ind = permind[0 : train_size]
+val_ind = permind[train_size : train_size + val_size]
+test_ind = permind[train_size + val_size : ]
 
 train_mat = sp_mat.tocsr()[train_ind].tocoo()
+val_mat = sp_mat.tocsr()[val_ind].tocoo()
 test_mat = sp_mat.tocsr()[test_ind].tocoo()
 
 train_quad = np.c_[np.ones((len(train_mat.data), 1)), train_mat.row, train_mat.col, train_mat.data]
+val_quad = np.c_[np.ones((len(val_mat.data), 1)), val_mat.row, val_mat.col, val_mat.data]
 test_quad = np.c_[np.ones((len(test_mat.data), 1)), test_mat.row, test_mat.col, test_mat.data]
 
 np.savetxt(INPUT_DATA + 'train.tsv', train_quad, delimiter='\t', fmt='%d')
+np.savetxt(INPUT_DATA + 'validation.tsv', val_quad, delimiter='\t', fmt='%d')
 np.savetxt(INPUT_DATA + 'test.tsv', test_quad, delimiter='\t', fmt='%d')
 
 
