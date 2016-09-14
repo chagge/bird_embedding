@@ -12,6 +12,14 @@
 \author{Li-Ping Liu}
 \date{}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% some notations
+\newcommand{\wt}{\boldsymbol{\rho}}
+\newcommand{\obswt}{\boldsymbol{\beta}}
+\newcommand{\emb}{\boldsymbol{\alpha}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
 
 \maketitle
@@ -52,47 +60,53 @@ In the embedding model, we essentially need to define the conditional distributi
 
 The exposure model can be used to describe the observation process. Mathematically, it plays the role of down-weighting zero entries in the observation matrix. In another word, a species is not observed either because no such bird lives there or because it is not detected by that observation. If the model choose the second explanation, then model would use little strength to fit the zero value. We will see this after we have defined the model formally.  
 
-Let's define the model. Suppose there are $M$ checklists, and let $i$, $1 \le i \le M$, index checklists. In the data there are $N = 953$ species, each of which is indexed by $j$, $1 \le j \le N$.  
-In each checklist $i$, $y_{ij}$ birds are observed for species $j$. The context of $y_{ij}$ is $\mathbf{c}_{ij} = (y_{i1}, \ldots, y_{i(j-1)}, y_{i(j+1)}, \ldots, y_{iN})$. For each checklist, the feature vector $\mathbf{x}_{i}$ brings some information of the observation process. The probability $u_{ij}$ of observing each species $j$ is calculated as $u_{ij} = \mathrm{logistic}(\beta_j^\top \mathbf{x}_i)$, where $\beta_j$ is a parameter. The indicator $a_{ij}$ of observing species $j$ at checklist $i$ is sampled from Bernoulli distribution. 
+Let's define the model. Suppose there are $N$ checklists, and let $i$, $1 \le i \le N$, index checklists. In the data there are $J = 953$ species, each of which is indexed by $j$, $1 \le j \le J$.  
+In each checklist $i$, $y_{ij}$ birds are observed for species $j$. 
+
+For each checklist, the feature vector $\mathbf{x}_{i}$ brings some information of the observation process. The probability $u_{ij}$ of observing each species $j$ is calculated as $u_{ij} = \mathrm{logistic}(\obswt_j^\top \mathbf{x}_i)$, where $\obswt_j$ is a parameter. The indicator $b_{ij}$ of observing species $j$ at checklist $i$ is sampled from Bernoulli distribution with probability $u_{ij}$. 
 \begin{eqnarray}
-a_{ij} &\sim& \mathrm{Bernoulli}(u_{ij}).
+b_{ij} &\sim& \mathrm{Bernoulli}(u_{ij}).
 \end{eqnarray}
 
-The observed count $y_{ij}$ is from Poisson distribution defined as follows.   
+The observed count $y_{ij}$ is from Poisson distribution defined as follows. 
 \begin{eqnarray}
-y_{ij} &\sim& \mathrm{Poisson}(a_{ij} \lambda_{ij}),
+y_{ij} &\sim& \mathrm{Poisson}(b_{ij} \lambda_{ij}),
 \end{eqnarray}
-where the rate $\lambda_{ij}$ can be defined in several ways. The following two examples are defined through exponential function and softplus function. 
+where the rate $\lambda_{ij}$ is the rate calculated from the embedding. 
+
+To define the embedding, we first define the {\it context} of $y_{ij}$, which consists of species with positive observations. 
 \begin{eqnarray}
-\lambda_{ij} &=& \exp(\theta_{j}^\top \mathbf{c}_{ij} ) \label{lambda_exp} \\
-\lambda_{ij} &=& \alpha \log (1 + \exp(\theta_{j}^\top \mathbf{c}_{ij} / \alpha)) \label{lambda_sp}
+C_{ij} = \{j': y_{ij'} > 0, j' \neq j\}
 \end{eqnarray}
-where the vector $\theta_j$ is a parameter shared by species $j$. 
 
-The parameter $\theta_j$ and $\beta_j$ are given Gaussian priors. 
+The embedding of species $j$ is $\emb_j$. The rate is defined as follows. 
 \begin{eqnarray}
-\theta_j &\sim& \mathrm{Normal}(\mathbf{0}, \sigma_1 I), \\
-\beta_j &\sim& \mathrm{Normal}(\mathbf{0}, \sigma_2 I),
+\lambda_{ij} &=& f\left(\wt_{j}^\top \sum_{j' \in C_i} r(y_{ij'}) \emb_{j'}\right) \label{lambda_exp} 
 \end{eqnarray}
-where $\sigma_1$ and $\sigma_2$ are hyper-parameters, $\mathbf{0}$ is a zero vector with length $N$, and $I$ is the identity matrix of size $N$. 
+where the vector $\wt_j$ is the weight vector shared by species $j$. The function $r(\cdot)$ maps counts to a value in $[0, 1]$ to avoid that a large count dominate the embedding. The function $f(\cdot)$ maps a value in $\mathcal{R}$ to $\mathcal{R}^{+}$. It can be defined as the exponential function or the softplus function. 
 
-
-The definition above is made for all $1 \le i \le M$ and $1 \le j \le N$. 
-
-What is the indication of the learned parameter $\theta$? It is easy to see that $\theta$ captures the correlation among bird species. For example, if we see a {\it sea gull}, which is a strong indication of the location being at the coast, which in turns has positive indication of {\it albatross}. In this sense, the correlation among bird species does not necessarily indicates interactions among them. Instead, their distributions are caused by some common hidden factors and correlated when these hidden factors are marginalized (or excluded from the model). As a second step, we should include environmental covariates and let them explain distributions of birds. We can define the Poisson rate $\lambda$ as follows. 
+The parameters $\alpha_j$, $\rho_j$, and $\beta_j$ are given Gaussian priors. 
 \begin{eqnarray}
-\lambda_{ij} =  \exp(\theta_{j}^\top \mathbf{c}_{ij} ) + f_j (\mathbf{v}_i)
+\emb_j &\sim& \mathrm{Normal}(\mathbf{0}, \sigma^2_1 I), \\
+\wt_j &\sim& \mathrm{Normal}(\mathbf{0}, \sigma^2_2 I), \\
+\obswt_j &\sim& \mathrm{Normal}(\mathbf{0}, \sigma^2_3 I),
 \end{eqnarray}
-where $f_i$ is a function that maps the covariates $\mathbf{v}_i$ at location $i$ to a fitness value for species $j$. If $f_j (\mathbf{v}_i)$ can perfectly model species distributions for single species, then $\theta$ will capture interactions among species. However, it is more likely that there are still some factors not included in $\mathbf{v}$. Nevertheless, $\theta$ will contain both the marginalized correlation and interactions among birds. Experts may be able to identify factors missing from $\mathbf{v}$ or manually discover more bird interactions from $\theta$.  
+where $\sigma_1^2$, $\sigma_2^2$, and $\sigma_3^2$ are hyper-parameters, $\mathbf{0}$ represents a zero vector with proper length $N$, and $I$ represents the identity matrix of with proper size. 
 
-The function $f_j (\mathbf{v}_i)$ should be learned first, so the species distribution is explained by environmental covariates first. The embedding model is used to explain the part not explained by $f$. Compared with joint learning of $f$ and $\theta$, there are two benefits from this considerations: a) the embedding part can focus more on interactions among bird species, and b) learning is computationally more efficient. 
 
+The parameter $\wt$ and and $\emb$ explains the correlation among bird species. The correlation comes from either shared environmental factors or birds' interactions. As an extension of the model, we can explain bird distributions with environmental covariates first and the apply the embedding model to the residual to capture more information about bird interactions. We can define the Poisson rate $\lambda$ as follows. 
+\begin{eqnarray}
+\lambda'_{ij} =  \lambda_{ij} + g_j (\mathbf{v}_i)
+\end{eqnarray}
+where $g_j(\cdot)$ is a function that maps the covariates $\mathbf{v}_i$ at location $i$ to a fitness value for species $j$. If $g_j (\mathbf{v}_i)$ can perfectly model species distributions for single species, then the embedding model will capture interactions among species. However, it is more likely that there are still some factors not included in $\mathbf{v}$. Nevertheless, the embedding model will contain both the marginalized correlation and interactions among birds. Experts may be able to identify factors missing from $\mathbf{v}$ or manually discover more bird interactions from the embedding model.  
+
+The function $g_j (\mathbf{v}_i)$ should be learned first, so the species distribution is explained by environmental covariates first. The embedding model is used to explain the part not explained by $f$. Compared with joint learning of $f$ and $\theta$, there are two benefits from this considerations: a) the embedding part can focus more on interactions among bird species, and b) learning is computationally more efficient. 
 
 \section{Inference}
 
 In this second, we develop a varitional inference method to infer parameters of the model. 
 
-\subsection{ E-step: calculating posterior distribution of $a_{ij}$}
+\subsection{ E-step: calculating posterior distribution of observation variable}
 
 In this subsection, we calculate the posterior distribution of $a_{ij}$.
 \begin{eqnarray}
@@ -107,22 +121,28 @@ q_{ij}^{1} &=& p(a_{ij} = 1 | y_{ij} = 0, \lambda_{ij}, u_{ij}) =  \frac{u_{ij}\
 
 In the M-step, we want to maximize the following objective. 
 \begin{eqnarray}
-LL(\theta, \beta) &=& \sum_{ij} E_{a_{ij}} \Big[\log p\big(y_{ij} | a_{ij} \exp(\theta^\top \mathbf{c}_{ij})\big) + \log p\big(a_{ij} | \beta_j^\top \mathbf{x}_{ij}\big)\Big] \nonumber\\
-&=& \sum_{ij}  - q_{ij}^0 \log (1 +  \exp(\beta_j^\top \mathbf{x}_i)) + q_{ij}^1 \Big( y_{ij}\log(\lambda_{ij}) - \lambda_{ij} - \log \big(1 + \exp( - \beta_j^\top \mathbf{x}_i) \big) \Big) \nonumber
+LL(\wt, \emb, \obswt) &=& \sum_{ij} E_{a_{ij}} \Big[\log p\left(y_{ij} | a_{ij} \lambda_{ij} \right) + \log p\left(a_{ij} | \obswt_j^\top \mathbf{x}_{ij}\right)\Big] \nonumber\\
+&=& \sum_{ij}  - q_{ij}^0 \log (1 +  \exp(\obswt_j^\top \mathbf{x}_i)) + q_{ij}^1 \Big( y_{ij}\log(\lambda_{ij}) - \lambda_{ij} - \log \big(1 + \exp( - \obswt_j^\top \mathbf{x}_i) \big) \Big) \nonumber
 \end{eqnarray}
 
 Take derivatives with respect to the parameters. 
 \begin{eqnarray}
-\nabla_{\theta_j} LL &=& \sum_{i}  q_{ij}^1 \left( y_{ij}/\lambda_{ij} - 1 \right)
-\nabla_{\theta_j} \lambda_{ij} \\
-\nabla_{\beta_j} LL  &=& \sum_{i} - q_{ij}^0 \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij}) \mathbf{x}_{ij} + q_{ij}^1 (1 - \mathrm{logistic}(\beta_j^\top \mathbf{x}_{ij})) \mathbf{x}_{ij}
+\nabla_{\wt_j} LL &=& \sum_{i}  q_{ij}^1 \left( y_{ij}/\lambda_{ij} - 1 \right)
+\nabla_{\wt_j} \lambda_{ij} \\
+\nabla_{\emb_j} LL &=& \sum_{i}\sum_{j \in C_{ij'}}  q_{ij'}^1 \left( y_{ij'}/\lambda_{ij'} - 1 \right)
+\nabla_{\emb_j} \lambda_{ij'} \\
+\nabla_{\obswt_j} LL  &=& \sum_{i} - q_{ij}^0 \mathrm{logistic}(\obswt_j^\top \mathbf{x}_{ij}) \mathbf{x}_{ij} + q_{ij}^1 (1 - \mathrm{logistic}(\obswt_j^\top \mathbf{x}_{ij})) \mathbf{x}_{ij}
 \end{eqnarray}
 
-With the softplus function, $\nabla_{\theta_j} \lambda_{ij} = \frac{\exp(\theta_j^\top \mathbf{c}_{ij} / \alpha) \mathbf{c}_{ij}}{1 + \exp(\theta_j^\top \mathbf{c}_{ij} / \alpha)}$
+With the softplus function, 
+\begin{eqnarray}
+\nabla_{\wt_j} \lambda_{ij} &=& \frac{\exp(h_{ij} / \delta)}{1 + \exp(h_{ij} / \delta)} \sum_{j' \in C_{ij}} r(y_{ij'}) \emb_{j'} \\
+\nabla_{\emb_{j}} \lambda_{ij'} &=& \frac{\exp(h_{ij'} / \delta)}{1 + \exp(h_{ij'} / \delta)}  r(y_{ij'}) \wt_{j'}
+\end{eqnarray}
 
 \section{Research Directions}
 
-Assumption: embeddings at similar time-locations are similar but different. Can we use a $\theta_{ij}$ for each checklist $i$ and species $j$ and put a GP prior over $\theta_{ij}$-s to encourage strong correlation among $\theta_{ij}$-s at neighboring locations?  
+Assumption: embeddings at similar time-locations are similar but different. Can we use a $\wt_{ij}$ for each checklist $i$ and species $j$ and put a GP prior over $\wt_{ij}$-s to encourage strong correlation among $\wt_{ij}$-s at neighboring locations?  
 
 Can we do inference over 6 million checklists?
 
@@ -130,9 +150,10 @@ Can we predict the presence/absence of species?
 
 \section{TODO list}
 \begin{itemize}
-\item [Done] Derive the inference method
-\item [Done] Run a small dataset with the P-EMB model
-\item [Mostly done] Code the algorithm
+\item \lbrack Done\rbrack Derive the inference method
+\item \lbrack Done\rbrack
+Run a small dataset with the P-EMB model
+\item \lbrack Mostly done\rbrack Code the algorithm
 \item Setup the experiment protocol
 \item ...
 \end{itemize}
