@@ -129,7 +129,7 @@ Take derivatives with respect to the parameters.
 \begin{eqnarray}
 \nabla_{\wt_j} LL &=& \sum_{i}  q_{ij}^1 \left( y_{ij}/\lambda_{ij} - 1 \right)
 \nabla_{\wt_j} \lambda_{ij} \\
-\nabla_{\emb_j} LL &=& \sum_{i}\sum_{j \in C_{ij'}}  q_{ij'}^1 \left( y_{ij'}/\lambda_{ij'} - 1 \right)
+\nabla_{\emb_j} LL &=& \sum_{i}\sum_{j' \in C_{ij}}  q_{ij'}^1 \left( y_{ij'}/\lambda_{ij'} - 1 \right)
 \nabla_{\emb_j} \lambda_{ij'} \\
 \nabla_{\obswt_j} LL  &=& \sum_{i} - q_{ij}^0 \mathrm{logistic}(\obswt_j^\top \mathbf{x}_{ij}) \mathbf{x}_{ij} + q_{ij}^1 (1 - \mathrm{logistic}(\obswt_j^\top \mathbf{x}_{ij})) \mathbf{x}_{ij}
 \end{eqnarray}
@@ -137,7 +137,7 @@ Take derivatives with respect to the parameters.
 With the softplus function, 
 \begin{eqnarray}
 \nabla_{\wt_j} \lambda_{ij} &=& \frac{\exp(h_{ij} / \delta)}{1 + \exp(h_{ij} / \delta)} \sum_{j' \in C_{ij}} r(y_{ij'}) \emb_{j'} \\
-\nabla_{\emb_{j}} \lambda_{ij'} &=& \frac{\exp(h_{ij'} / \delta)}{1 + \exp(h_{ij'} / \delta)}  r(y_{ij'}) \wt_{j'}
+\nabla_{\emb_{j}} \lambda_{ij'} &=& \frac{\exp(h_{ij'} / \delta)}{1 + \exp(h_{ij'} / \delta)}  r(y_{ij}) \wt_{j'}
 \end{eqnarray}
 
 \section{Research Directions}
