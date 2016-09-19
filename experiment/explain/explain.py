@@ -1,3 +1,5 @@
+''' This code plot the embedding result of cofactor'''
+
 import glob
 import os
 import numpy as np

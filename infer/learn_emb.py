@@ -97,7 +97,7 @@ def learn_embedding(counts, context, obs_cov, K):
     nspecies = counts.shape[1]
     ncovar = obs_cov.shape[1]
 
-    param = np.random.rand(nspecies *(2 * K + ncovar)) * 1e-3
+    param = np.random.rand(nspecies *(2 * K + ncovar)) * 1e-5
     rindex = np.arange(ntuple)
     np.random.shuffle(rindex)
     
@@ -125,9 +125,9 @@ def learn_embedding(counts, context, obs_cov, K):
 
             valobj = valres['obj']
 
-    alpha = param[0 : nspecies * K] 
-    rho = param[nspecies * K : nspecies * K * 2]
-    beta = param[nspecies * K * 2 : ]
+    alpha = param[0 : nspecies * K].reshape((nspecies, K)) 
+    rho = param[nspecies * K : nspecies * K * 2].reshape((nspecies, K))
+    beta = param[nspecies * K * 2 : ].reshape((nspecies, ncovar))
 
     model = dict(alpha=alpha, rho=rho, beta=beta)
     return model

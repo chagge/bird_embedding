@@ -1,6 +1,10 @@
 #import itertools
+
+'''This code is used to make sure that tables from all years have the same table head'''
 import os
 import csv
+
+
 
 with open('../data/aggregated_obs_2014.csv', 'rb') as csvfile:
     spamreader = csv.reader(csvfile, delimiter=',')
