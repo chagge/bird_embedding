@@ -9,8 +9,6 @@ import sys
 sys.path.append('../prepare_data/')
 from extract_counts import load_sparse_coo
 
-
-
 def softplus(x):
     y = x.copy()
     y[x < 20] = np.log(1 + np.exp(x[x < 20]))
@@ -135,8 +133,8 @@ def learn_embedding(counts, context, obs_cov, config):
 
     # set parameters for adagrad
     G = np.zeros(param.shape) 
-    eta = 0.01
-    for it in xrange(1, 1000):
+    eta = config['eta'] 
+    for it in xrange(1, config['max_iter'] + 1):
         
         # randomly select one instance and calculate gradient
         rind = np.random.choice(trind, size=1, replace=False)
@@ -185,8 +183,25 @@ def calculate_llh(counts, context, obs_cov, config, model):
         param = np.r_[model['alpha'].ravel(), model['rho'].ravel(), model['beta'].ravel()]
 
     func_opt = dict(cal_obj=False, cal_grad=False, cal_llh=True)
-    llh = infer_emb_model(counts, context, obs_cov, config, param, func_opt)
-    return llh
+    res = infer_emb_model(counts, context, obs_cov, config, param, func_opt)
+    return res['llh'] 
+
+def normalize_context(counts):
+
+    #
+    def nmlz(x):
+        if (np.sum(x > 0) > 0):
+            return np.percentile(x[x > 0], q=95)
+        else:
+            return 1
+    #
+
+    context = counts.copy()
+    s = np.apply_along_axis(nmlz, axis=1, arr=context)
+    context = context / s[:, np.newaxis]
+
+    return context
+
 
 def test_gradient(counts, context, obs_cov):
 

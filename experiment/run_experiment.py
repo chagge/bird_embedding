@@ -14,6 +14,7 @@ from extract_counts import load_sparse_coo
 sys.path.append('../infer/')
 from learn_emb import learn_embedding 
 from learn_emb import calculate_llh
+from learn_emb import normalize_context
 from plot_emb import plot_bird 
 
 if __name__ == "__main__":
@@ -22,7 +23,7 @@ if __name__ == "__main__":
     data_dir = '../data/subset_pa_201407/'
     obs_cov = np.load(data_dir + 'obs_covariates.npy')
     counts = load_sparse_coo(data_dir + 'counts.npz').toarray()
-    context = counts.copy() #(counts > 0).astype(float)
+    context = counts.copy() #normalize_context(counts)
 
     # seperate a test set
     index = np.arange(counts.shape[0])
@@ -31,7 +32,7 @@ if __name__ == "__main__":
     trind = index[0 : ntr] 
     stind = index[ntr : ]
 
-    config = dict(intercept_term=True, link_func='softplus', valid_frac=0.1, K=2)
+    config = dict(intercept_term=True, link_func='exp', valid_frac=0.1, K=10, max_iter=30000, eta=0.001)
     model = learn_embedding(counts[trind], context[trind], obs_cov[trind], config)
      
     print model.keys()
