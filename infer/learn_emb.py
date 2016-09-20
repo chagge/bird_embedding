@@ -4,6 +4,7 @@
 import numpy as np
 import scipy
 import scipy.special as special
+from scipy.stats import poisson
 import sys
 
 sys.path.append('../prepare_data/')
@@ -20,159 +21,186 @@ def grad_softplus(x):
     y = special.expit(x)
     return y
 
-def elbo(counts, context, obs_cov, K, param):
+#@profile
+def infer_emb_model(counts, context, obs_cov, config, param, func_opt):
     
     ntuple = counts.shape[0]
     nspecies = counts.shape[1]
     ncovar = obs_cov.shape[1]
+    K = config['K']
 
+    # dispatch parameters
     alpha = param[0 : nspecies * K].reshape((nspecies, K)) 
     rho = param[nspecies * K : nspecies * K * 2].reshape((nspecies, K))
-    rho0 = param[nspecies * K * 2 : nspecies * (K * 2 + 1)]
-    beta = param[nspecies * (K * 2 + 1) : ].reshape((nspecies, ncovar))
+    if config['intercept_term']:
+        rho0 = param[nspecies * K * 2 : nspecies * (K * 2 + 1)]
+        beta = param[nspecies * (K * 2 + 1) : ].reshape((nspecies, ncovar))
+    else:
+        beta = param[nspecies * (K * 2) : ].reshape((nspecies, ncovar))
+        rho0 = np.zeros(nspecies) 
 
     # observation probabilities for all checklists x species
-    U = special.expit(np.dot(obs_cov, beta.T)) 
+    U = special.expit(obs_cov.dot(beta.T)) 
     
     # get the context, 
     # R has the following meaning: each row of R removing the j-th element is the context (weight) of the j-th species for all j. 
     # alternatively speaking: element j_1 contributes the same amount to species j_2 and j_3 in their respective contexts. 
     # weight is included in the context. 0 means the element is not in the context of any other species 
-    # there is a lot of game to play with R 
+    # Lots of tricks to play with R 
     R = context 
 
     # calculate lambda
-    H0 = np.dot(R, np.diag(np.sum(alpha * rho, axis=1)))
-    H = np.dot(R, np.dot(alpha, rho.T)) - H0
-    H = H + np.tile(rho0, (ntuple, 1))
+    H0 = R * (np.sum(alpha * rho, axis=1))
+    H = R.dot(alpha).dot(rho.T) - H0
+    if config['intercept_term']:
+        H = H + rho0
     
-    if np.sum(np.isnan(U)) > 0:
-        raise Exception('NaN value in U')
-    #calculate q, the parameter of the variational parameter
-    if np.sum(np.isnan(H)) > 0:
-        raise Exception('NaN value in H')
-
-    linkfunc = np.exp #softplus
-    grad_linkfunc = np.exp #grad_softplus
+    if config['link_func'] == 'exp':
+        linkfunc = np.exp
+        grad_linkfunc = np.exp
+    else:
+        linkfunc = softplus
+        grad_linkfunc = grad_softplus
 
     epsilon = 0.01 
     Lamb = linkfunc(H) 
     Lamb = Lamb + epsilon
 
-    if np.sum(np.isnan(Lamb)) > 0:
-        raise Exception('NaN value in Lambda')
+    obj = None
+    grad = None
+    llh = None
 
+    if func_opt['cal_llh'] or func_opt['cal_obj']:
+        #some llh values will be -inf because the corresponding elements of U is 1 and their poisson.pmf are 0 
+        llh = np.sum(np.log((1 - U) + U * poisson.pmf(counts, Lamb))) / ntuple
+        obj = 0.5 * np.sum(alpha * alpha) + 0.5 * np.sum(rho * rho) + 0.5 * np.sum(beta * beta) - llh
 
-    if np.sum(np.isinf(Lamb)) > 0:
-        raise Exception('Inf value in Lambda')
- 
-    Q = np.ones((ntuple, nspecies)) 
-    flag = counts == 0
-    Q[flag] = (U[flag] * np.exp(-Lamb[flag])) / (1 - U[flag] + U[flag] * np.exp(-Lamb[flag]))
+    if func_opt['cal_grad']:
 
-    if np.sum(np.isnan(Q)) > 0:
-        nanflag = np.isnan(Q)
-        raise Exception('NaN value in Q')
+        Q = 1 - (1 - U) / ((1 - U) + U * poisson.pmf(counts, Lamb))
 
-    if linkfunc == np.exp:
-        Temp = Q * (counts - Lamb)
-    else:
-        Temp = Q * (counts / Lamb - 1) * grad_linkfunc(H)
+        # Temp is gradient of obj w.r.t. H
+        if linkfunc == np.exp:
+            Temp = Q * (counts - Lamb)
+        else:
+            Temp = Q * (counts / Lamb - 1) * grad_linkfunc(H)
 
-    Temp1 = np.dot(R.T, Temp)
-    np.fill_diagonal(Temp1, 0)
+        if ntuple == 1:
+            Temp3 = (R * Temp).squeeze()
+            gelbo_alpha = (R.T).dot(Temp.dot(rho)) - Temp3[:, np.newaxis] * rho
+            gelbo_rho = (Temp.T).dot(R.dot(alpha)) - Temp3[:, np.newaxis] * alpha 
+        else: 
+            Temp1 = (R.T).dot(Temp)
+            np.fill_diagonal(Temp1, 0)
+            gelbo_alpha = Temp1.dot(rho)
+            gelbo_rho = (Temp1.T).dot(alpha)
 
-    gllh_alpha = np.dot(Temp1, rho)
-    grad_alpha = (alpha - gllh_alpha / ntuple).ravel()
-    
-    gllh_rho = np.dot(Temp1.T, alpha)
-    grad_rho = (rho - gllh_rho / ntuple).ravel()
+        grad_alpha = (alpha - gelbo_alpha / ntuple).ravel()
+        grad_rho = (rho - gelbo_rho / ntuple).ravel()
 
-    grad_rho0 = - np.mean(Temp, axis=0)
+        gelbo_beta =   ((Q - U ).T).dot(obs_cov)  
+        grad_beta = (beta - gelbo_beta / ntuple).ravel()
 
-    gllh_beta =  - np.dot(((1 - Q) * U).T, obs_cov) + np.dot((Q * (1 - U)).T, obs_cov) 
-    grad_beta = (beta - gllh_beta / ntuple).ravel()
+        if config['intercept_term']:
+            grad_rho0 = - np.mean(Temp, axis=0)
+            grad = np.r_[grad_alpha, grad_rho, grad_rho0, grad_beta]
+        else:
+            grad = np.r_[grad_alpha, grad_rho, grad_beta]
 
-    grad = np.r_[grad_alpha, grad_rho, grad_rho0, grad_beta]
+    return dict(obj=obj, grad=grad, llh=llh)
 
-    norm = 0.5 * np.sum(alpha * alpha) + 0.5 * np.sum(rho * rho) + 0.5 * np.sum(beta * beta)
-    flag0 = Q > 1e-10
-    flag1 = Q < 1 - 1e-10
-    llh = np.sum((1 - Q[flag1]) * np.log(1 - U[flag1])) + np.sum(Q[flag0] * (counts[flag0] * np.log(Lamb[flag0]) - Lamb[flag0] + np.log(U[flag0]))) 
-    entropy = - np.sum((1 - Q[flag1]) * np.log(1 - Q[flag1])) - np.sum(Q[flag0] * np.log(Q[flag0]))
-    obj = norm - (llh + entropy) / ntuple 
-
-    return dict(obj=obj, grad=grad)
-
-def learn_embedding(counts, context, obs_cov, K):
+def learn_embedding(counts, context, obs_cov, config):
 
     ntuple = counts.shape[0]
     nspecies = counts.shape[1]
     ncovar = obs_cov.shape[1]
 
-    param = np.random.rand(nspecies *(2 * K + 1 + ncovar)) * 1e-5
+    # seperate out a validation set
     rindex = np.arange(ntuple)
     np.random.shuffle(rindex)
-    
-    valind = rindex[0 : ntuple/5] 
-    trind = rindex[ntuple/5 : ]
+    nval = np.round(ntuple * config['valid_frac'])
+    valind = rindex[0 : nval] 
+    trind = rindex[nval : ]
 
-    valobj =  elbo(counts[valind, :], context[valind, :], obs_cov[valind, :], K, param)
+    # initialize model parameters. no need to seperate now
+    if config['intercept_term']:
+        param = np.random.rand(nspecies *(2 * K + 1 + ncovar)) * 1e-5
+    else:
+        param = np.random.rand(nspecies *(2 * K + ncovar)) * 1e-5
 
+
+    #calculate objective before start
+    #func_opt = dict(cal_obj=True, cal_grad=False, cal_llh=False)
+    #valobj =  infer_emb_model(counts[valind, :], context[valind, :], obs_cov[valind, :], param, config, func_opt)
+
+    # set parameters for adagrad
     G = np.zeros(param.shape) 
     eta = 0.01
-    for it in xrange(1, 10000):
+    for it in xrange(1, 1000):
         
-        #print('iteration ' + str(it) + ':' + str(max(param)))
+        # randomly select one instance and calculate gradient
         rind = np.random.choice(trind, size=1, replace=False)
-        res = elbo(counts[rind, :].reshape((1, nspecies)), context[rind, :].reshape((1, nspecies)), obs_cov[rind, :].reshape((1, ncovar)), K, param)
-
+        func_opt = dict(cal_obj=False, cal_grad=True, cal_llh=False)
+        res = infer_emb_model(counts[rind, :].reshape((1, nspecies)), context[rind, :].reshape((1, nspecies)), obs_cov[rind, :].reshape((1, ncovar)), config, param, func_opt)
         grad = res['grad']
-        obj = res['obj']
 
+        # update G and model parameter
         G = G + grad * grad
         param = param - grad * eta / np.sqrt(G + 1e-8)
 
-        if it % 10 == 0:
-            #res = elbo(obs_cov, counts, K, param, it)
-            valres =  elbo(counts[valind, :], context[valind, :], obs_cov[valind, :], K, param)
-            print 'objective is ' + str(res['obj']) + '; validation objective is ' + str(valres['obj'])
-            #if valres['obj'] > valobj:
-            #    break
-
-            valobj = valres['obj']
+        # print opt objective on the validation set
+        if it % 100 == 0:
+            func_opt = dict(cal_obj=True, cal_grad=False, cal_llh=False)
+            valres =  infer_emb_model(counts[valind, :], context[valind, :], obs_cov[valind, :], config, param, func_opt)
+            print 'validation objective is ' + str(valres['obj'])
+        
+        # set stop condition
+        # if stop_condition:
+        #    break
+    
+    # dispatch optimized parameters
 
     alpha = param[0 : nspecies * K].reshape((nspecies, K)) 
     rho = param[nspecies * K : nspecies * K * 2].reshape((nspecies, K))
-    rho0 = param[nspecies * K * 2 : nspecies * (K * 2 + 1)]
-    beta = param[nspecies * K * 2 : ].reshape((nspecies, ncovar))
+    if config['intercept_term']:
+        rho0 = param[nspecies * K * 2 : nspecies * (K * 2 + 1)]
+        beta = param[nspecies * (K * 2 + 1) : ].reshape((nspecies, ncovar))
+    else: 
+        beta = param[nspecies * (K * 2) : ].reshape((nspecies, ncovar))
+        rho0 = np.zeros(nspecies)
 
     model = dict(alpha=alpha, rho=rho, rho0=rho0, beta=beta)
     return model
-
- 
 
 
 def test_gradient(counts, context, obs_cov):
 
     nspecies = counts.shape[1]
     ncovar = obs_cov.shape[1]
-    K = 10
 
+    config = dict(intercept_term=True, link_func='softplus', valid_frac=0.1, K = 10)
+    
+    func_opt = dict(cal_obj=True, cal_grad=True, cal_llh=True)
     # intialize a parameter
-    param = np.random.rand(nspecies *(2 * K + 1 + ncovar)) * 1e-3
+    if config['intercept_term']:
+        param = np.random.rand(nspecies *(2 * K + 1 + ncovar)) * 1e-1
+    else:
+        param = np.random.rand(nspecies *(2 * K + ncovar)) * 1e-1
 
-    res1 = elbo(counts, context, obs_cov, K, param)
+    res1 = infer_emb_model(counts, context, obs_cov, config, param, func_opt=func_opt)
 
     param2 = param.copy()
     dalpha = 1e-8 * np.random.rand(nspecies * K)
     drho =  1e-8  * np.random.rand(nspecies * K)
     drho0 =  1e-8  * np.random.rand(nspecies)
     dbeta = 1e-8 * np.random.rand(nspecies * ncovar)
-    dparam = np.r_[dalpha, drho, drho0, dbeta] 
+    if config['intercept_term']:
+        dparam = np.r_[dalpha, drho, drho0, dbeta] 
+    else:
+        dparam = np.r_[dalpha, drho, dbeta] 
     param2 = param + dparam
 
-    res2 = elbo(counts, context, obs_cov, K, param2)
+    res2 = infer_emb_model(counts, context, obs_cov, config, param2, func_opt=func_opt)
     diffv = res2['obj'] - res1['obj']
     diffp = np.dot(res1['grad'], dparam) 
     print 'value difference is '
@@ -180,38 +208,19 @@ def test_gradient(counts, context, obs_cov):
     print 'first order difference'
     print diffp
 
-    ## the follow part tests the derivative with respect to Q, which should be 0
-    ## to test the following part, the program need to accept and return Q. Q does not depend on the data.
-    ## add small permutation to Q and test the derivative with respect Q
-    #Q = res1['Q'].copy()
-    #Q[counts == 0] = Q[counts == 0] + 1e-8 * np.random.rand(np.sum(counts == 0)) 
-    #Q[Q >= 1] = 1
-    #Q[Q <= 0] = 0
-
-    #dQ = (Q[counts == 0] - res1['Q'][counts == 0]).ravel()
-    ## second order derivative with respect to Q
-    #h = 1 / res1['Q'][counts == 0] + 1 / (1 - res1['Q'][counts == 0])
-
-    #res3 = elbo(obs_cov, counts, param, Q) 
-
-    #taylor2 = 0.5 * sum(dQ * h * dQ)
-    #print 'Value difference is '
-    #print res3['obj'] - res1['obj']
-    #print 'The first order difference is zero'
-    #print 'The second order difference is'
-    #print taylor2
-
 if __name__ == "__main__":
 
     np.random.seed(6)
     data_dir = '../data/subset_pa_201407/'
     obs_cov = np.load(data_dir + 'obs_covariates.npy')
-    counts = load_sparse_coo(data_dir + 'counts.npz').toarray()
-    context = (counts > 0).astype(float)
+    counts = load_sparse_coo(data_dir + 'counts.npz')
+    counts = counts.toarray()
+    context = counts.astype(float)
     K = 10
 
     test_gradient(counts, context, obs_cov)
     raise Exception('Stop here')
    
-    learn_embedding(counts, context, obs_cov, K)
+    config = dict(intercept_term=True, link_func='exp', valid_frac=0.1, K=10)
+    learn_embedding(counts, context, obs_cov, config)
    
