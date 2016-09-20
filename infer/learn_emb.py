@@ -1,6 +1,5 @@
 ''' This file implements the inference method for the bird embedding ''' 
 
-
 import numpy as np
 import scipy
 import scipy.special as special
@@ -114,6 +113,7 @@ def learn_embedding(counts, context, obs_cov, config):
     ntuple = counts.shape[0]
     nspecies = counts.shape[1]
     ncovar = obs_cov.shape[1]
+    K = config['K']
 
     # seperate out a validation set
     rindex = np.arange(ntuple)
@@ -165,13 +165,28 @@ def learn_embedding(counts, context, obs_cov, config):
     if config['intercept_term']:
         rho0 = param[nspecies * K * 2 : nspecies * (K * 2 + 1)]
         beta = param[nspecies * (K * 2 + 1) : ].reshape((nspecies, ncovar))
+        model = dict(alpha=alpha, rho=rho, rho0=rho0, beta=beta)
     else: 
         beta = param[nspecies * (K * 2) : ].reshape((nspecies, ncovar))
-        rho0 = np.zeros(nspecies)
+        model = dict(alpha=alpha, rho=rho, beta=beta)
 
-    model = dict(alpha=alpha, rho=rho, rho0=rho0, beta=beta)
     return model
 
+def calculate_llh(counts, context, obs_cov, config, model):
+    # a little argument check
+    if config['intercept_term'] and ('rho0' not in model):
+        raise Exception('The option "intercept term" is on, but there is no rho0 term in the model.')
+    elif (not config['intercept_term']) and ('rho0' in model):
+        raise Exception('The option "intercept term" is off, but there is a intercept term in the model.')
+
+    if config['intercept_term']:
+        param = np.r_[model['alpha'].ravel(), model['rho'].ravel(), model['rho0'], model['beta'].ravel()]
+    else:
+        param = np.r_[model['alpha'].ravel(), model['rho'].ravel(), model['beta'].ravel()]
+
+    func_opt = dict(cal_obj=False, cal_grad=False, cal_llh=True)
+    llh = infer_emb_model(counts, context, obs_cov, config, param, func_opt)
+    return llh
 
 def test_gradient(counts, context, obs_cov):
 
@@ -216,10 +231,9 @@ if __name__ == "__main__":
     counts = load_sparse_coo(data_dir + 'counts.npz')
     counts = counts.toarray()
     context = counts.astype(float)
-    K = 10
 
-    test_gradient(counts, context, obs_cov)
-    raise Exception('Stop here')
+    #test_gradient(counts, context, obs_cov)
+    #raise Exception('Stop here')
    
     config = dict(intercept_term=True, link_func='exp', valid_frac=0.1, K=10)
     learn_embedding(counts, context, obs_cov, config)
