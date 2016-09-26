@@ -23,24 +23,31 @@ if __name__ == '__main__':
     # selection conditions for columns
     # shown in the variable "flag"
     
-    year = 2014 
+    for year in xrange(2014, 2015):
+        data_path = '/nfs/stak/students/l/liuli/liping/ebird/ebird_2014/' + str(year) + '/checklists.csv' 
+        print 'Data path is ' + data_path
     
-    data_path = '/nfs/stak/students/l/liuli/liping/ebird/ebird_2014/' + str(year) + '/checklists.csv' 
-    print 'Data path is ' + data_path
-    
-    df = pandas.read_csv(data_path, sep=',', header='infer', na_values=['X', '?'], na_filter=True, keep_default_na=True)
+        df = pandas.read_csv(data_path, sep=',', header='infer', na_values=['X', '?'], na_filter=True, keep_default_na=True)
     
     
-    flag = ((180 <= df['DAY']) & (df['DAY'] < 210) 
-          & ((39 + 43.0/60) < df['LATITUDE']) & (df['LATITUDE'] < 42)
-          & (-(80 + 31.0/60) < df['LONGITUDE']) & (df['LONGITUDE'] < -74.3))
+        flag = (180 <= df['DAY']) & (df['DAY'] < 210) 
+
+        # if only take PA area
+        #flag = ((180 <= df['DAY']) & (df['DAY'] < 210) 
+        #    & ((39 + 43.0/60) < df['LATITUDE']) & (df['LATITUDE'] < 42)
+        #    & (-(80 + 31.0/60) < df['LONGITUDE']) & (df['LONGITUDE'] < -74.3))
     
-    # if only take out eastern wood pewee
-    #df = df.loc[flag, ['LATITUDE','LONGITUDE','DAY','TIME', 'COUNT_TYPE', 'EFFORT_HRS', 'EFFORT_DISTANCE_KM', 
-    #                 'EFFORT_AREA_HA', 'NUMBER_OBSERVERS', 'PRIMARY_CHECKLIST_FLAG', 'Contopus_virens']]
+        # if only take out eastern wood pewee
+        #df = df.loc[flag, ['LATITUDE','LONGITUDE','DAY','TIME', 'COUNT_TYPE', 'EFFORT_HRS', 'EFFORT_DISTANCE_KM', 
+        #                 'EFFORT_AREA_HA', 'NUMBER_OBSERVERS', 'PRIMARY_CHECKLIST_FLAG', 'Contopus_virens']]
     
-    #df.to_csv('../data/obs_subset_y' + str(year) + '_d180-210_ewp' + '.csv')
     
-    # if to take all species 
-    df = df.loc[flag, :]
-    #df.to_csv('../data/subset_pa/obs_subset_y' + str(year) + '_d180-210' + '.csv')
+        # if to take all species 
+        df = df.loc[flag, :]
+
+        #df.to_csv('../data/obs_subset_y' + str(year) + '_d180-210_ewp' + '.csv')
+        #df.to_csv('../data/subset_pa/obs_subset_y' + str(year) + '_d180-210' + '.csv')
+        df.to_csv('../data/subset_07/obs_subset_y' + str(year) + '_d180-210' + '.csv')
+
+
+
