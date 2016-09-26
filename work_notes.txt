@@ -9,8 +9,9 @@ TODO:
 [Done] Run cofactor model on data groupped by stixels 
 [Done] Plot the embedding of birds
 
-Derive the inference method for P-EMB with exposure model 
-Test P-EMB with a small dataset
+[Done] Derive the inference method for P-EMB with exposure model 
+[Working on]Test P-EMB with a small dataset
+[Done] Plot with tSNE
 
 
 
