@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # shown in the variable "flag"
     
     for year in xrange(2014, 2015):
-        data_path = '/nfs/stak/students/l/liuli/liping/ebird/ebird_2014/' + str(year) + '/checklists.csv' 
+        data_path = '../data/ebird/' + str(year) + '/checklists.csv' 
         print 'Data path is ' + data_path
     
         df = pandas.read_csv(data_path, sep=',', header='infer', na_values=['X', '?'], na_filter=True, keep_default_na=True)
