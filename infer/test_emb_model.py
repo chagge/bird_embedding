@@ -12,35 +12,40 @@ from extract_counts import load_sparse_coo
 
 def test_gradient(counts, context, obs_cov):
 
-    #counts = counts[2].reshape((1, -1))
-    #context = context[2].reshape((1, -1))
-    #obs_cov = obs_cov[2].reshape((1, -1))
-
+    counts = np.round(counts)
     nspecies = counts.shape[1]
-    ncovar = obs_cov.shape[1]
 
-    config = dict(intercept_term=True, link_func='softplus', valid_frac=0.1, K = 10, sigma2a=0.1, sigma2r=1, sigma2b=10)
+    ncovar = obs_cov.shape[1]
+    #obs_cov = None
+    #ncovar = 0
+
+    config = dict(downzero=True, intercept_term=False, link_func='softplus', valid_frac=0.1, K = 10, sigma2a=0.1, sigma2r=1, sigma2b=1)
 
     K = config['K'] 
     func_opt = dict(cal_obj=True, cal_grad=True, cal_llh=True)
     # intialize a parameter
-    if config['intercept_term']:
-        param = np.random.rand(nspecies *(2 * K + 1 + ncovar)) * 1e-1 - 0.05
-    else:
-        param = np.random.rand(nspecies *(2 * K + ncovar)) * 1e-1 - 0.05
+
+    param = np.random.rand(nspecies *(2 * K + config['intercept_term'] + (ncovar + 1) * config['downzero'])) * 1e-1 - 0.05
 
     res1 = elbo(counts, context, obs_cov, config, param, func_opt=func_opt)
     mod1 = emb_model(counts, context, obs_cov, config, param, func_opt=func_opt)
 
     param2 = param.copy()
     dalpha = 1e-8 * np.random.rand(nspecies * K)
-    drho =  1e-8  * np.random.rand(nspecies * K)
-    drho0 =  1e-8  * np.random.rand(nspecies)
-    dbeta = 1e-8 * np.random.rand(nspecies * ncovar)
+    drho   = 1e-8 * np.random.rand(nspecies * K)
+    drho0  = 1e-8 * np.random.rand(nspecies)
+    dbeta  = 1e-8 * np.random.rand(nspecies * ncovar)
+    dbeta0  = 1e-8 * np.random.rand(nspecies)
+
+    dparam = np.r_[dalpha, drho]
     if config['intercept_term']:
-        dparam = np.r_[dalpha, drho, drho0, dbeta] 
-    else:
-        dparam = np.r_[dalpha, drho, dbeta] 
+        dparam = np.r_[dparam, drho0]
+    
+    if config['downzero']:
+        if not obs_cov is None:
+            dparam = np.r_[dparam, dbeta]
+        dparam = np.r_[dparam, dbeta0]
+
     param2 = param + dparam
 
     res2 = elbo(counts, context, obs_cov, config, param2, func_opt=func_opt)
@@ -72,8 +77,8 @@ if __name__ == "__main__":
     context = counts_to_context(counts)
  
 
-    #test_gradient(counts, context, obs_cov)
-    #raise Exception('Stop here')
+    test_gradient(counts, context, obs_cov)
+    raise Exception('Stop here')
 
     opt_config = dict(eta=0.005, max_iter=100000,  print_niter=1000, valid_frac=0.1, min_improve=1e-3, display=1)
     model_config = dict(K=10, sigma2a=10, sigma2b=10, sigma2r=10, link_func='exp', intercept_term=True)

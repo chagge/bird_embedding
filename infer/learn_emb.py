@@ -5,6 +5,11 @@ from emb_model import *
 
 def learn(counts, context, obs_cov, config):
 
+
+    nonzero_ind = np.where(np.sum(counts, axis=0) > 0)[0]
+    counts = counts.copy()[:, nonzero_ind]
+    context = context.copy()[:, nonzero_ind]
+
     ntuple = counts.shape[0]
     nspecies = counts.shape[1]
     ncovar = obs_cov.shape[1]
@@ -13,6 +18,7 @@ def learn(counts, context, obs_cov, config):
     K = model_config['K']
     has_intc = int(model_config['intercept_term'])
 
+    print 'Learning a embedding problem with %d checklists and %d species' % (ntuple, nspecies)
 
     # seperate out a validation set
     if config['valid_config'].has_key('valid_ind'):
@@ -40,7 +46,7 @@ def learn(counts, context, obs_cov, config):
     # initialize G for adagrad
     G = np.zeros(param.shape) 
     eta = opt_config['eta'] 
-    ns = 1 # number of samples in each calculation of gradient
+    ns = opt_config['batch_size'] # number of samples in each calculation of gradient
     for it in xrange(1, opt_config['max_iter'] + 1):
 
         # randomly select ns instance and calculate gradient
@@ -92,6 +98,7 @@ def learn(counts, context, obs_cov, config):
         beta = param[nspecies * (K * 2) : ].reshape((nspecies, ncovar))
         model = dict(alpha=alpha, rho=rho, beta=beta, val_llh=val_llh)
 
+    model['nonzero_ind'] = nonzero_ind
     return model
 
 
