@@ -67,5 +67,3 @@ if __name__ == "__main__":
         np.savetxt(fold_dir + 'obscov_valid.csv', obs_cov[valind])
         np.savetxt(fold_dir + 'obscov_test.csv', obs_cov[stind])
 
-
-
