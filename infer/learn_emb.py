@@ -16,7 +16,6 @@ def learn(counts, context, obs_cov, config):
     model_config = config['model_config']
     opt_config = config['opt_config']
     K = model_config['K']
-    has_intc = int(model_config['intercept_term'])
 
     print 'Learning a embedding problem with %d checklists and %d species' % (ntuple, nspecies)
 
@@ -33,7 +32,7 @@ def learn(counts, context, obs_cov, config):
         valind = rindex[0 : nval] 
 
     # initialize model parameters. no need to seperate now
-    param = np.random.rand(nspecies *(2 * K + has_intc + ncovar)) * 1e-2
+    param = np.random.rand(nspecies *(2 * K + model_config['intercept_term'] + (ncovar * model_config['use_obscov'] + 1) * model_config['downzero'])) * 1e-2
 
     #calculate objective before start
     val_llh = np.zeros((opt_config['max_iter'] / 1000 + 2, 2), dtype=float)
@@ -90,15 +89,23 @@ def learn(counts, context, obs_cov, config):
 
     alpha = param[0 : nspecies * K].reshape((nspecies, K)) 
     rho = param[nspecies * K : nspecies * K * 2].reshape((nspecies, K))
+    model = dict(alpha=alpha, rho=rho, val_llh=val_llh, nonzero_ind=nonzero_ind)
+    tail_ind = nspecies * K * 2
     if model_config['intercept_term']:
-        rho0 = param[nspecies * K * 2 : nspecies * (K * 2 + 1)]
-        beta = param[nspecies * (K * 2 + 1) : ].reshape((nspecies, ncovar))
-        model = dict(alpha=alpha, rho=rho, rho0=rho0, beta=beta, val_llh=val_llh)
-    else: 
-        beta = param[nspecies * (K * 2) : ].reshape((nspecies, ncovar))
-        model = dict(alpha=alpha, rho=rho, beta=beta, val_llh=val_llh)
+        rho0 = param[tail_ind : tail_ind + nspecies]
+        model['rho0'] = rho0
+        tail_ind = tail_ind + nspecies
 
-    model['nonzero_ind'] = nonzero_ind
+    if model_config['downzero']:
+        if model_config['use_obscov']: 
+            beta = param[tail_ind : tail_ind + nspecies * ncovar].reshape((nspecies, ncovar))
+            model['beta'] = beta
+            tail_ind = tail_ind + nspecies * ncovar
+
+        beta0 = param[tail_ind : tail_ind + nspecies]
+        model['beta0'] = beta0
+        tail_ind = tail_ind + nspecies
+
     return model
 
 

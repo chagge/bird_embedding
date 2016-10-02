@@ -18,11 +18,11 @@ def grad_softplus(x):
 #@profile
 def elbo(counts, context, obs_cov, model_config, param, func_opt):
 
-    
     ntuple = counts.shape[0]
     nspecies = counts.shape[1]
-    if not obs_cov is None: 
+    if model_config['use_obscov']:
         ncovar = obs_cov.shape[1]
+
     K = model_config['K']
     downzero = model_config['downzero']
     has_intercept = int(model_config['intercept_term'])
@@ -38,15 +38,20 @@ def elbo(counts, context, obs_cov, model_config, param, func_opt):
 
     if downzero:
         # observation probabilities for all checklists x species
-        if not obs_cov is None: 
+        if model_config['use_obscov']: 
             beta = param[tail_ind : tail_ind + nspecies * ncovar].reshape((nspecies, ncovar))
             tail_ind = tail_ind + nspecies * ncovar
-            beta0 = param[tail_ind : ]
+            beta0 = param[tail_ind : tail_ind + nspecies]
+            tail_ind = tail_ind + nspecies
             U = special.expit(obs_cov.dot(beta.T) + beta0[None, :])
         else:
-            beta0 = param[tail_ind : ]
+            beta0 = param[tail_ind : tail_ind + nspecies]
+            tail_ind = tail_ind + nspecies
+
             U = np.tile(special.expit(beta0), (ntuple, 1))
-    
+    if not tail_ind == len(param):
+        raise Exception('Parameter vector passed in is longer than it should be. (' + str(len(param)) + ' > ' + str(tail_ind) + ')')
+
     # get the context, 
     R = context 
 
@@ -105,17 +110,14 @@ def elbo(counts, context, obs_cov, model_config, param, func_opt):
             Temp3 = (R * Temp).squeeze()
             gelbo_alpha = (R.T).dot(Temp.dot(rho)) - Temp3[:, np.newaxis] * rho
             gelbo_rho = (Temp.T).dot(R.dot(alpha)) - Temp3[:, np.newaxis] * alpha 
-
-            gelbo_alpha = gelbo_alpha.ravel()
-            gelbo_rho   = gelbo_rho.ravel()
         else: 
             Temp1 = (R.T).dot(Temp)
             np.fill_diagonal(Temp1, 0)
             gelbo_alpha = Temp1.dot(rho)
             gelbo_rho = (Temp1.T).dot(alpha)
 
-            gelbo_alpha = (gelbo_alpha / (ntuple * nspecies)).ravel()
-            gelbo_rho   = (gelbo_rho   / (ntuple * nspecies)).ravel()
+        gelbo_alpha = (gelbo_alpha / (ntuple * nspecies)).ravel()
+        gelbo_rho   = (gelbo_rho   / (ntuple * nspecies)).ravel()
 
         gelbo = np.r_[gelbo_alpha, gelbo_rho]
 
@@ -127,7 +129,7 @@ def elbo(counts, context, obs_cov, model_config, param, func_opt):
         if downzero:
             Temp4 = Q - U 
             Temp4[counts > 0] = Temp4[counts > 0] + (1 - Q[counts > 0]) * U[counts > 0]
-            if not obs_cov is None: 
+            if model_config['use_obscov']: 
                 gelbo_beta = (Temp4.T).dot(obs_cov)  
                 gelbo_beta  = (gelbo_beta  / (ntuple * nspecies)).ravel()
                 gelbo = np.r_[gelbo, gelbo_beta]
@@ -144,7 +146,7 @@ def emb_model(counts, context, obs_cov, model_config, param, func_opt):
 
     ntuple = counts.shape[0]
     nspecies = counts.shape[1]
-    if not obs_cov is None:
+    if model_config['use_obscov']:
         ncovar = obs_cov.shape[1]
     K = model_config['K']
     
@@ -164,7 +166,7 @@ def emb_model(counts, context, obs_cov, model_config, param, func_opt):
             rho0 = model['rho0']
             param = np.r_[param, rho0]
         if model_config['downzero']:
-            if not obs_cov is None:
+            if model_config['use_obscov']:
                 beta = model['beta'].ravel()
                 param = np.r_[param, beta]
 
@@ -181,7 +183,7 @@ def emb_model(counts, context, obs_cov, model_config, param, func_opt):
             tail_ind = tail_ind + nspecies
 
         if model_config['downzero']:
-            if not obs_cov is None:
+            if model_config['use_obscov']:
                 beta = param[tail_ind : tail_ind + nspecies * ncovar]
                 tail_ind = tail_ind + nspecies * ncovar
             
@@ -194,21 +196,21 @@ def emb_model(counts, context, obs_cov, model_config, param, func_opt):
 
     sigma2a = model_config['sigma2a'] 
     sigma2r = model_config['sigma2r'] 
-
-    if model_config['downzero'] and (not obs_cov is None):
+    if model_config['downzero'] and model_config['use_obscov']:
         sigma2b = model_config['sigma2b'] 
 
     obj = None
     reg = None
+    grad = None
     if func_opt['cal_obj']:
         rega = 0.5 * np.sum(alpha * alpha) / sigma2a 
         regr = 0.5 * np.sum(rho * rho) / sigma2r 
-        if model_config['downzero'] and (not obs_cov is None):
-            regb = 0.5 * np.sum(beta * beta) / sigma2b
-        else: 
-            regb = 0
+        reg = rega + regr
 
-        reg = rega + regr + regb
+        if model_config['downzero'] and model_config['use_obscov']:
+            regb = 0.5 * np.sum(beta * beta) / sigma2b
+            reg = reg + regb
+
         obj = reg  + res['obj']
     
     if func_opt['cal_grad']:
@@ -222,7 +224,7 @@ def emb_model(counts, context, obs_cov, model_config, param, func_opt):
         if model_config['intercept_term']:
             tail_ind = tail_ind + nspecies
 
-        if model_config['downzero'] and (not obs_cov is None):
+        if model_config['downzero'] and model_config['use_obscov']:
             grad_elbo[tail_ind : tail_ind + nspecies * ncovar] = grad_elbo[tail_ind : tail_ind + nspecies * ncovar] + beta / sigma2b
 
         grad = grad_elbo
