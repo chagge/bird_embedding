@@ -1,6 +1,7 @@
 *.csv
 *.tsv
 *.pyc
+*.pkl
 *.project
 *.pydevproject
 *.swp
