@@ -11,11 +11,10 @@ import cPickle as pickle
 
 sys.path.append('../prepare_data/')
 from extract_counts import load_sparse_coo
-
 sys.path.append('../infer/')
-from emb_model import * 
-from learn_emb import * 
-from context import *
+from emb_model import emb_model
+
+from experiment import config_to_filename
 
 
 import scipy.sparse as sparse
@@ -28,50 +27,33 @@ if __name__ == "__main__":
     rseed = 27
     np.random.seed(rseed)
 
-    fold = 0 #int(sys.argv[1]) 
-    data_dir = '../data/subset_pa_201407/data_folds/' + str(fold) + '/'
-    print 'experiment on data fold %d' % fold
-    
-    counts_train = read_pemb_file(data_dir + 'train.tsv')
-    counts_valid = read_pemb_file(data_dir + 'validation.tsv')
-    counts_test  = read_pemb_file(data_dir + 'test.tsv')
+    fold = 0 
 
-    nspecies = max(counts_train.shape[1], counts_valid.shape[1], counts_test.shape[1])
-    counts_train = np.c_[counts_train, np.zeros((counts_train.shape[0], nspecies - counts_train.shape[1]))]
-    counts_valid = np.c_[counts_valid, np.zeros((counts_valid.shape[0], nspecies - counts_valid.shape[1]))]
-    counts_test  = np.c_[counts_test,  np.zeros((counts_test.shape[0],  nspecies - counts_test.shape[1]))]
+    model_config = dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True)
+    filename = 'result/' + config_to_filename(model_config, fold=0)
 
-    context_train = counts_train.copy()
-    context_test = counts_test.copy()
-
-    obscov_test  = np.loadtxt(data_dir + 'obscov_test.csv')
-
-
-    pkl_file = open('experiment' + str(fold) + '.pkl', 'rb') 
-    result = pickle.load(pkl_file)
-    model = result['model']
-    config = result['config']
+    pkl_file = open(filename, 'rb') 
+    output = pickle.load(pkl_file)
+    model = output['model']
+    config = output['config']
+    test_llh = output['result']['test_llh']
     model_config = config['model_config']
-
-    if config['model_config']['scale_context']:
-        s = counts_pos95percent(context_train)
-        s[s <= 0] = 1
-        context_train = context_train / s
-        context_test = context_test / s
-
-
 
     print 'alpha ---------------------------------------'
     print model['alpha']
     print 'rho ---------------------------------------'
     print model['rho']
-    print 'rho0 ---------------------------------------'
-    print model['rho0']
-    print 'beta ---------------------------------------'
-    print model['beta']
+    if model_config['intercept_term']:
+        print 'rho0 ---------------------------------------'
+        print model['rho0']
+    if model_config['use_obscov']:
+        print 'beta ---------------------------------------'
+        print model['beta']
+    if model_config['downzero']:
+        print 'beta0 ---------------------------------------'
+        print model['beta0']
+        
     
-    test_llh = emb_model(counts_test[:, model['nonzero_ind']], context_test[:, model['nonzero_ind']], obscov_test, model_config, model, dict(cal_grad=False, cal_obj=True))
-
     print 'Test log likelihood is ' + str(test_llh['llh'])
     print 'Test pos log likelihood is ' + str(test_llh['pos_llh'])
 

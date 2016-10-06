@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     for rseed in xrange(0, 10):
     
-        np.random.seed(rseed)
+        np.random.seed(rseed + 27)
         data_dir = '../data/subset_pa_201407/'
         obs_cov = np.load(data_dir + 'obs_covariates.npy')
         counts = load_sparse_coo(data_dir + 'counts.npz').toarray()

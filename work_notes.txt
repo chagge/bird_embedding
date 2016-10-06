@@ -13,5 +13,20 @@ TODO:
 [Working on]Test P-EMB with a small dataset
 [Done] Plot with tSNE
 
+[Working on] report experiment results
+1. compare three settings:
+1) no downweighting zeros
+2) downweighting zeros without covariates 
+2) downweighting zeros with covariates 
 
+problem: some fold get extremely large values. Find the instance causing the problem
 
+2. compare scaling the context
+
+3. compare poisson distribution with intercept term and without it  
+
+4. compare number of components
+
+5. compare parameter settings of sigma 
+
+6. plot one embedding of birds

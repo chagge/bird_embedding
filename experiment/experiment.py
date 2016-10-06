@@ -16,6 +16,21 @@ from extract_counts import load_sparse_coo
 from separate_sets import read_pemb_file
 
 
+def config_to_filename(model_config, fold):
+
+    filename = ('experiment' + '_k' + str(int(model_config['K']))
+                             + '_lf' + model_config['link_func']  
+                             + '_sc' + str(int(model_config['scale_context'])) 
+                             + '_it' + str(int(model_config['intercept_term'])) 
+                             + '_dz'  + str(int(model_config['downzero'])) 
+                             + '_uo' + str(int(model_config['use_obscov'])) 
+                             + '_sa' + str(int(model_config['sigma2a'])) 
+                             + '_sb' + str(int(model_config['sigma2b'])) 
+                             + '_f' + str(fold) + '.pkl')
+
+    return filename
+
+
 def fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True, scale_context=False, downzero=True, use_obscov=True, fold=0):
 
     data_dir = '../data/subset_pa_201407/data_folds/' + str(fold) + '/'
@@ -40,7 +55,7 @@ def fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True
 
     print 'The embeddint task has %d tuples, %d species' % (counts_train.shape[0], counts_train.shape[1])
     
-    opt_config = dict(eta=0.01, max_iter=200000, batch_size=1,  print_niter=2000, min_improve=2e-4, display=1)
+    opt_config = dict(eta=0.002, max_iter=1000000, batch_size=1,  print_niter=2000, min_improve=1e-4, display=1)
     model_config = dict(K=K, sigma2a=sigma2ar, sigma2b=sigma2b, sigma2r=sigma2ar, link_func=link_func, intercept_term=intercept_term, scale_context=scale_context, downzero=downzero, use_obscov=use_obscov)
     valid_config = dict(valid_ind=val_ind)
     config = dict(opt_config=opt_config, model_config=model_config, valid_config=valid_config)
@@ -61,15 +76,7 @@ def fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True
 
     print 'Test log likelihood is ' + str(test_llh['llh'])
 
-    filename = ('result/experiment' + '_k' + str(int(model_config['K']))
-                             + '_lf' + model_config['link_func']  
-                             + '_sc' + str(int(model_config['scale_context'])) 
-                             + '_it' + str(int(model_config['intercept_term'])) 
-                             + '_dz'  + str(int(model_config['downzero'])) 
-                             + '_uo' + str(int(model_config['use_obscov'])) 
-                             + '_sa' + str(int(model_config['sigma2a'])) 
-                             + '_sb' + str(int(model_config['sigma2b'])) 
-                             + '_f' + str(fold) + '.pkl')
+    filename = 'result/' + config_to_filename(model_config, fold)
 
     with open(filename, 'w') as fp:
         pickle.dump(dict(config=config, result=result, model=model), fp)
@@ -80,5 +87,5 @@ if __name__ == "__main__":
     rseed = 27
     np.random.seed(rseed)
 
-    fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True, scale_context=False, downzero=True, use_obscov=True, fold=0)
+    fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True, scale_context=False, downzero=True, use_obscov=True, fold=2)
 
