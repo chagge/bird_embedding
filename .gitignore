@@ -7,7 +7,10 @@
 *.swp
 job.sh
 *.log
+*.aux
+*.out
 *.err
 *.npy
 *.npz
+*.gz
 lib/
