@@ -140,6 +140,58 @@ With the softplus function,
 \nabla_{\emb_{j}} \lambda_{ij'} &=& \frac{\exp(h_{ij'} / \delta)}{1 + \exp(h_{ij'} / \delta)}  r(y_{ij}) \wt_{j'}
 \end{eqnarray}
 
+
+\section{Experiment}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/dwz.png}
+    \caption{Negative predicted log-likelihood with different measures of downweighting zeros}
+    \label{fig_dimensionality}
+\end{figure}
+
+
+
+
+{\bf Intercept term: }
+
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/intercept_term.png}
+    \caption{Negative predicted log-likelihood with and without the intercept term}
+    \label{fig_intercept_term}
+\end{figure}
+
+
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/scale_context.png}
+    \caption{Negative predicted log-likelihood with and without scaling the context}
+    \label{fig_dimensionality}
+\end{figure}
+
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/link_func.png}
+    \caption{Negative predicted log-likelihood with $\exp$ and $\mathrm{softmax}$ as the link function}
+    \label{fig_link_func}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/variate_K.png}
+    \caption{Negative predicted log-likelihood with different dimensionalities}
+    \label{fig_dimensionality}
+\end{figure}
+
+
+
+
+
+
 \section{Research Directions}
 
 Assumption: embeddings at similar time-locations are similar but different. Can we use a $\wt_{ij}$ for each checklist $i$ and species $j$ and put a GP prior over $\wt_{ij}$-s to encourage strong correlation among $\wt_{ij}$-s at neighboring locations?  
