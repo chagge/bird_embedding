@@ -2,6 +2,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{amsfonts}
 \usepackage{hyperref}
 \usepackage{color}
 
@@ -60,10 +61,10 @@ In the embedding model, we essentially need to define the conditional distributi
 
 The exposure model can be used to describe the observation process. Mathematically, it plays the role of down-weighting zero entries in the observation matrix. In another word, a species is not observed either because no such bird lives there or because it is not detected by that observation. If the model choose the second explanation, then model would use little strength to fit the zero value. We will see this after we have defined the model formally.  
 
-Let's define the model. Suppose there are $N$ checklists, and let $i$, $1 \le i \le N$, index checklists. In the data there are $J = 953$ species, each of which is indexed by $j$, $1 \le j \le J$.  
+Let's define the model. Suppose there are $N$ checklists, and let $i$, $1 \le i \le N$, index checklists. In the data there are $J = 214$ species, each of which is indexed by $j$, $1 \le j \le J$.  
 In each checklist $i$, $y_{ij}$ birds are observed for species $j$. 
 
-For each checklist, the feature vector $\mathbf{x}_{i}$ brings some information of the observation process. The probability $u_{ij}$ of observing each species $j$ is calculated as $u_{ij} = \mathrm{logistic}(\obswt_j^\top \mathbf{x}_i)$, where $\obswt_j$ is a parameter. The indicator $b_{ij}$ of observing species $j$ at checklist $i$ is sampled from Bernoulli distribution with probability $u_{ij}$. 
+For each checklist, the feature vector $\mathbf{x}_{i}$ brings some information of the observation process. The probability $u_{ij}$ of observing each species $j$ is calculated as $u_{ij} = \mathrm{logistic}(\obswt_j^\top \mathbf{x}_i + \bar{\beta}_j)$, where $\obswt_j$ is a parameter, and $\bar{\beta}_j$ is the intercept term. The indicator $b_{ij}$ of observing species $j$ at checklist $i$ is sampled from Bernoulli distribution with probability $u_{ij}$. 
 \begin{eqnarray}
 b_{ij} &\sim& \mathrm{Bernoulli}(u_{ij}).
 \end{eqnarray}
@@ -81,11 +82,11 @@ C_{ij} = \{j': y_{ij'} > 0, j' \neq j\}
 
 The embedding of species $j$ is $\emb_j$. The rate is defined as follows. 
 \begin{eqnarray}
-\lambda_{ij} &=& f\left(\wt_{j}^\top \sum_{j' \in C_i} r(y_{ij'}) \emb_{j'}\right) \label{lambda_exp} 
+\lambda_{ij} &=& f\left(\wt_{j}^\top \sum_{j' \in C_{ij}} r(y_{ij'}) \emb_{j'} + \bar{\lambda}_{j} \right) \label{lambda_exp} 
 \end{eqnarray}
-where the vector $\wt_j$ is the weight vector shared by species $j$. The function $r(\cdot)$ maps counts to a value in $[0, 1]$ to avoid that a large count dominate the embedding. The function $f(\cdot)$ maps a value in $\mathcal{R}$ to $\mathcal{R}^{+}$. It can be defined as the exponential function or the softplus function. 
+The vector $\wt_j$ is the weight vector shared by checklists of species $j$. The function $r(\cdot)$ maps counts to a value in $[0, 1]$ to avoid that a large count dominate the embedding. The function $f(\cdot)$ maps the product from $\mathbb{R}$ to $\mathbb{R}^{+}$. It can be defined as the exponential function or the softplus function ($f(x) = \log(1 + \exp(x))$). Different with traditional embedding, we also include an intercept term $\bar{\lambda}_{j}$ as the base rate.
 
-The parameters $\alpha_j$, $\rho_j$, and $\beta_j$ are given Gaussian priors. 
+Gaussian priors are put on the parameters $\alpha_j$, $\rho_j$, and $\beta_j$. 
 \begin{eqnarray}
 \emb_j &\sim& \mathrm{Normal}(\mathbf{0}, \sigma^2_1 I), \\
 \wt_j &\sim& \mathrm{Normal}(\mathbf{0}, \sigma^2_2 I), \\
@@ -93,36 +94,45 @@ The parameters $\alpha_j$, $\rho_j$, and $\beta_j$ are given Gaussian priors.
 \end{eqnarray}
 where $\sigma_1^2$, $\sigma_2^2$, and $\sigma_3^2$ are hyper-parameters, $\mathbf{0}$ represents a zero vector with proper length $N$, and $I$ represents the identity matrix of with proper size. 
 
+The parameter $\wt$ and and $\emb$ explains the correlation among bird species. The correlation comes from either shared environmental factors or birds' interactions. If the embedding is to capture more about birds' interactions, the base rate $\bar{\lambda}_{j}$ needs to explain more about environmental factors by including environmental covariates. 
 
-The parameter $\wt$ and and $\emb$ explains the correlation among bird species. The correlation comes from either shared environmental factors or birds' interactions. As an extension of the model, we can explain bird distributions with environmental covariates first and the apply the embedding model to the residual to capture more information about bird interactions. We can define the Poisson rate $\lambda$ as follows. 
-\begin{eqnarray}
-\lambda'_{ij} =  \lambda_{ij} + g_j (\mathbf{v}_i)
-\end{eqnarray}
-where $g_j(\cdot)$ is a function that maps the covariates $\mathbf{v}_i$ at location $i$ to a fitness value for species $j$. If $g_j (\mathbf{v}_i)$ can perfectly model species distributions for single species, then the embedding model will capture interactions among species. However, it is more likely that there are still some factors not included in $\mathbf{v}$. Nevertheless, the embedding model will contain both the marginalized correlation and interactions among birds. Experts may be able to identify factors missing from $\mathbf{v}$ or manually discover more bird interactions from the embedding model.  
 
-The function $g_j (\mathbf{v}_i)$ should be learned first, so the species distribution is explained by environmental covariates first. The embedding model is used to explain the part not explained by $f$. Compared with joint learning of $f$ and $\theta$, there are two benefits from this considerations: a) the embedding part can focus more on interactions among bird species, and b) learning is computationally more efficient. 
+\subsection{Settings}
+
+The model is defined to be flexible. Four different configurations are listed here.  
+\begin{itemize}
+
+
+\item[]{\bf downweighting zeros}: There are three settings for downweighting zeros. The first one is not downweighting zeros, the probability $u_{ij}$ for each $(i, j)$ being set to 1 instead of calculated by the logistic function. The second setting fits the probability $u_{ij}$ by the term $\bar{\beta}$ only, then the distribution of counts is essentially a zero-inflated Poisson distribution. The third setting fits the probability $u_{ij}$ by both observation covariates and $\bar{\beta}$, so zeros a further explained by covariates.    
+
+\item[]{\bf scaling context}: The counts in context exhibit large varince, and counts of some species are much larger than those of others. To prevent the embedding being dominated by species with large counts, counts are normalized by $r(\cdot)$ function. One method is to divide each count by the 95\% quantile of the counts of that species. If the setting is on, the counts are scaled.
+
+\item[]{\bf intercept term:} $\bar{\lambda}_{j} = 0$ gives the basic embedding, or $\bar{\lambda}_{j}$ is fit by the data. 
+
+\item[]{\bf link function:} $f(x) = \exp(x)$, or $f(x) = \log(1 + \exp(x))$.
+\end{itemize}
 
 \section{Inference}
 
-In this second, we develop a varitional inference method to infer parameters of the model. 
+In this section, we develop a varitional inference method to infer parameters of the model. The inference method below is general enough to include all settings above.
 
 \subsection{ E-step: calculating posterior distribution of observation variable}
 
-In this subsection, we calculate the posterior distribution of $a_{ij}$.
+In this subsection, we calculate the posterior distribution of $b_{ij}$.
 \begin{eqnarray}
-q_{ij}^{0} &=& p(a_{ij} = 0 | y_{ij} > 0, \lambda_{ij}, u_{ij}) =  0 \\
-q_{ij}^{1} &=& p(a_{ij} = 1 | y_{ij} > 0, \lambda_{ij}, u_{ij}) =  1 \\[10pt]
-q_{ij}^{0} &=& p(a_{ij} = 0 | y_{ij} = 0, \lambda_{ij}, u_{ij}) =  \frac{1 - u_{ij}}{1 - u_{ij} + u_{ij}\exp(-\lambda_{ij})} \\
-q_{ij}^{1} &=& p(a_{ij} = 1 | y_{ij} = 0, \lambda_{ij}, u_{ij}) =  \frac{u_{ij}\exp(-\lambda_{ij})}{1 - u_{ij} + u_{ij}\exp(-\lambda_{ij})}
+q_{ij}^{0} &=& p(b_{ij} = 0 | y_{ij} > 0, \lambda_{ij}, u_{ij}) =  0 \\
+q_{ij}^{1} &=& p(b_{ij} = 1 | y_{ij} > 0, \lambda_{ij}, u_{ij}) =  1 \\[10pt]
+q_{ij}^{0} &=& p(b_{ij} = 0 | y_{ij} = 0, \lambda_{ij}, u_{ij}) =  \frac{1 - u_{ij}}{1 - u_{ij} + u_{ij}\exp(-\lambda_{ij})} \\
+q_{ij}^{1} &=& p(b_{ij} = 1 | y_{ij} = 0, \lambda_{ij}, u_{ij}) =  \frac{u_{ij}\exp(-\lambda_{ij})}{1 - u_{ij} + u_{ij}\exp(-\lambda_{ij})}
 \end{eqnarray}
 
 
 \subsection{M-step: maximizing the log-likelihood with respect to model parameter}
 
-In the M-step, we want to maximize the following objective. 
+In the M-step, we want to maximize the following objective.
 \begin{eqnarray}
-LL(\wt, \emb, \obswt) &=& \sum_{ij} E_{a_{ij}} \Big[\log p\left(y_{ij} | a_{ij} \lambda_{ij} \right) + \log p\left(a_{ij} | \obswt_j^\top \mathbf{x}_{ij}\right)\Big] \nonumber\\
-&=& \sum_{ij}  - q_{ij}^0 \log (1 +  \exp(\obswt_j^\top \mathbf{x}_i)) + q_{ij}^1 \Big( y_{ij}\log(\lambda_{ij}) - \lambda_{ij} - \log \big(1 + \exp( - \obswt_j^\top \mathbf{x}_i) \big) \Big) \nonumber
+LL(\wt, \emb, \obswt) &=& \sum_{ij} E_{b_{ij}} \Big[\log p\left(y_{ij} | b_{ij} \lambda_{ij} \right) + \log p\left(b_{ij} | \obswt_j^\top \mathbf{x}_{ij}\right)\Big] \nonumber\\
+&=& \sum_{ij}  - q_{ij}^0 \log (1 +  \exp(\obswt_j^\top \mathbf{x}_i)) \mathbb{I}[y_{ij}=0] + q_{ij}^1 \Big( y_{ij}\log(\lambda_{ij}) - \lambda_{ij} - \log \big(1 + \exp( - \obswt_j^\top \mathbf{x}_i) \big) \Big) \nonumber
 \end{eqnarray}
 
 Take derivatives with respect to the parameters. 
@@ -136,59 +146,70 @@ Take derivatives with respect to the parameters.
 
 With the softplus function, 
 \begin{eqnarray}
-\nabla_{\wt_j} \lambda_{ij} &=& \frac{\exp(h_{ij} / \delta)}{1 + \exp(h_{ij} / \delta)} \sum_{j' \in C_{ij}} r(y_{ij'}) \emb_{j'} \\
-\nabla_{\emb_{j}} \lambda_{ij'} &=& \frac{\exp(h_{ij'} / \delta)}{1 + \exp(h_{ij'} / \delta)}  r(y_{ij}) \wt_{j'}
+\nabla_{\wt_j} \lambda_{ij} &=& \frac{\exp(h_{ij})}{1 + \exp(h_{ij} / \delta)} \sum_{j' \in C_{ij}} r(y_{ij'}) \emb_{j'}, \\
+\nabla_{\emb_{j}} \lambda_{ij'} &=& \frac{\exp(h_{ij'})}{1 + \exp(h_{ij'} / \delta)}  r(y_{ij}) \wt_{j'},
 \end{eqnarray}
+where $h_{ij} = f^{-1}(\lambda_{ij})$.
 
+
+
+\subsection{Maximization with Stochastic Gradient}
+
+Combining the E-step with the M-step by appying $q$ values to the gradients above gives the gradient of the log-likelihood with respect to model parameters. 
+Instead of calculating the exact gradient with all training instances, we only calculate a noisy gradient by using only one instance randomly drawn from the 
+training set. Then we use AdaGrad to update model parameters with noisy graidents. Practically, the algorithm converges within 100,000 iterations. 
 
 \section{Experiment}
 
+In the experiment, a subset of checklists are taken from a rectangular area that mostly overlps with Pennsylvania and the period from day 180 to day 210 in 2014. The 
+subset has  overall 5488 checklists (trips)
+and 214 bird species (items). The dataset is randomly split into two thirds as the training set and one third as the test set. The model is trained on the training set and tested on the test set for ten times on 10 different random splits. In each training run, the model is optimized on nine tenth of the training set and validated on the rest one tenth. For each random split, the negative predictive log-likelihood is recorded. In two randomly splits, there are some outliers that greatly affect the performance of the model, so these two random splits are removed. We report the average negative predictive log-likelihood on 8 random splits.
+
+The basic setting is as follows. $K = 10, \sigma_1 = \sigma_2 = \sigma3 = 100, \bar{\lambda}_j = 0, f(\cdot) = \exp(\cdot)$. Counts in context are scaled by 95\% quantile value of each species. Observation covariates and $\bar{\beta}$ are used to fit $u_{ij}$. In the following result, only the setting to be examined is varied. 
+
+{\bf Downweighting zeros:} See results in Fig.~\ref{fig_dwz}. This result shows that the average performance with different measures of downweighting zeros. When both covariates and $\bar{\beta}$ are used, the mean value of the performance is smallest.   
+
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/dwz.png}
+    \includegraphics[width=0.6\textwidth]{figures/dwz.png}
     \caption{Negative predicted log-likelihood with different measures of downweighting zeros}
-    \label{fig_dimensionality}
+    \label{fig_dwz}
 \end{figure}
 
 
-
-
-{\bf Intercept term: }
-
-
+{\bf Scaling context:} See results in Fig.~\ref{fig_scaling}. Scaling counts in contexts helps to stablize the algorithm. Without scaling the context counts, the log-likelihood of validation set stops increasing before much less iterations than that of the setting with scaling counts. 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/intercept_term.png}
+    \includegraphics[width=0.6\textwidth]{figures/scale_context.png}
+    \caption{Negative predicted log-likelihood with and without scaling the context}
+    \label{fig_scaling}
+\end{figure}
+
+
+{\bf Intercept term: } See results in Fig.~\ref{fig_intercept_term}. Intercept terms $(\bar{\lambda}_j)_j$ helps to explain the data. 
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.6\textwidth]{figures/intercept_term.png}
     \caption{Negative predicted log-likelihood with and without the intercept term}
     \label{fig_intercept_term}
 \end{figure}
 
 
 
+{\bf : } See results in Fig.~\ref{fig_link_func}. Two link functions give very similar results. 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/scale_context.png}
-    \caption{Negative predicted log-likelihood with and without scaling the context}
-    \label{fig_dimensionality}
-\end{figure}
-
-
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/link_func.png}
+    \includegraphics[width=0.6\textwidth]{figures/link_func.png}
     \caption{Negative predicted log-likelihood with $\exp$ and $\mathrm{softmax}$ as the link function}
     \label{fig_link_func}
 \end{figure}
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/variate_K.png}
+    \includegraphics[width=0.6\textwidth]{figures/variate_K.png}
     \caption{Negative predicted log-likelihood with different dimensionalities}
     \label{fig_dimensionality}
 \end{figure}
-
-
-
 
 
 
@@ -196,19 +217,7 @@ With the softplus function,
 
 Assumption: embeddings at similar time-locations are similar but different. Can we use a $\wt_{ij}$ for each checklist $i$ and species $j$ and put a GP prior over $\wt_{ij}$-s to encourage strong correlation among $\wt_{ij}$-s at neighboring locations?  
 
-Can we do inference over 6 million checklists?
-
 Can we predict the presence/absence of species?
-
-\section{TODO list}
-\begin{itemize}
-\item \lbrack Done\rbrack Derive the inference method
-\item \lbrack Done\rbrack
-Run a small dataset with the P-EMB model
-\item \lbrack Mostly done\rbrack Code the algorithm
-\item Setup the experiment protocol
-\item ...
-\end{itemize}
 
 
 \end{document}

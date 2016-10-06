@@ -27,10 +27,10 @@ if __name__ == "__main__":
     rseed = 27
     np.random.seed(rseed)
 
-    fold = 0 
+    fold = 5 
 
     model_config = dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True)
-    filename = 'result/' + config_to_filename(model_config, fold=0)
+    filename = 'result/' + config_to_filename(model_config, fold=5)
 
     pkl_file = open(filename, 'rb') 
     output = pickle.load(pkl_file)
