@@ -165,7 +165,9 @@ In the experiment, a subset of checklists are taken from a rectangular area that
 subset has  overall 5488 checklists (trips)
 and 214 bird species (items). The dataset is randomly split into two thirds as the training set and one third as the test set. The model is trained on the training set and tested on the test set for ten times on 10 different random splits. In each training run, the model is optimized on nine tenth of the training set and validated on the rest one tenth. For each random split, the negative predictive log-likelihood is recorded. In two randomly splits, there are some outliers that greatly affect the performance of the model, so these two random splits are removed. We report the average negative predictive log-likelihood on 8 random splits.
 
-The basic setting is as follows. $K = 10, \sigma_1 = \sigma_2 = \sigma3 = 100, \bar{\lambda}_j = 0, f(\cdot) = \exp(\cdot)$. Counts in context are scaled by 95\% quantile value of each species. Observation covariates and $\bar{\beta}$ are used to fit $u_{ij}$. In the following result, only the setting to be examined is varied. 
+[Here is the reason why the model performs badly in the two splits. In one spit, the test set has a bad checklist submitted by a bad guy. For three bird speices, the average counts are(6.4, 4.7, 2.4), and this guy writes (1000, 500, 1000) there. The model screws up over these casual numbers and get log-likelihood -70610!]
+
+The basic setting is as follows. $K = 10, \sigma_1 = \sigma_2 = \sigma_3 = 100, \bar{\lambda}_j = 0, f(\cdot) = \exp(\cdot)$. Counts in context are scaled by 95\% quantile value of each species. Observation covariates and $\bar{\beta}$ are used to fit $u_{ij}$. In the following result, only the setting to be examined is varied. 
 
 {\bf Downweighting zeros:} See results in Fig.~\ref{fig_dwz}. This result shows that the average performance with different measures of downweighting zeros. When both covariates and $\bar{\beta}$ are used, the mean value of the performance is smallest.   
 
@@ -196,7 +198,7 @@ The basic setting is as follows. $K = 10, \sigma_1 = \sigma_2 = \sigma3 = 100, \
 
 
 
-{\bf : } See results in Fig.~\ref{fig_link_func}. Two link functions give very similar results. 
+{\bf Link function:} See results in Fig.~\ref{fig_link_func}. Two link functions give very similar results. 
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.6\textwidth]{figures/link_func.png}
@@ -204,6 +206,7 @@ The basic setting is as follows. $K = 10, \sigma_1 = \sigma_2 = \sigma3 = 100, \
     \label{fig_link_func}
 \end{figure}
 
+{\bf Number of dimensions:} See results in Fig.~\ref{fig_dimensionality}. Varying the number of dimensions does not make much difference. 
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.6\textwidth]{figures/variate_K.png}
