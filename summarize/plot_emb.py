@@ -50,6 +50,16 @@ def plot_bird(alpha):
     # print some strange birds 
     #print [bird_names[i] for i in np.where(vis_data[:, 0] > 0.1)[0]]
 
+if __name__ == "__main__":
+
+    fold = 5 
+
+    model_config = dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True)
+    filename = 'result/' + config_to_filename(model_config, fold=5)
+    pkl_file = open(filename, 'rb') 
+    model = output['model']
+
+    print model['alpha']
 
 
 
