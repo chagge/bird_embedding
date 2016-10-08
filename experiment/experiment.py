@@ -33,21 +33,23 @@ def config_to_filename(model_config, fold):
 
 def fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True, scale_context=False, downzero=True, use_obscov=True, fold=0):
 
-    data_dir = '../data/subset_pa_201407/data_folds/' + str(fold) + '/'
-    print 'Experiment on data fold %d' + data_dir 
+    data_dir = '../data/subset_07/'
+    fold_dir = data_dir + 'data_folds/' + str(fold) + '/'
+
+    print 'Experiment on data fold %d' + fold_dir 
     
-    counts_train = read_pemb_file(data_dir + 'train.tsv')
-    counts_valid = read_pemb_file(data_dir + 'validation.tsv')
-    counts_test  = read_pemb_file(data_dir + 'test.tsv')
+    counts_train = read_pemb_file(fold_dir + 'train.tsv')
+    counts_valid = read_pemb_file(fold_dir + 'validation.tsv')
+    counts_test  = read_pemb_file(fold_dir + 'test.tsv')
 
     nspecies = max(counts_train.shape[1], counts_valid.shape[1], counts_test.shape[1])
     counts_train = np.c_[counts_train, np.zeros((counts_train.shape[0], nspecies - counts_train.shape[1]))]
     counts_valid = np.c_[counts_valid, np.zeros((counts_valid.shape[0], nspecies - counts_valid.shape[1]))]
     counts_test  = np.c_[counts_test,  np.zeros((counts_test.shape[0],  nspecies - counts_test.shape[1]))]
 
-    obscov_train = np.loadtxt(data_dir + 'obscov_train.csv')
-    obscov_valid = np.loadtxt(data_dir + 'obscov_valid.csv')
-    obscov_test  = np.loadtxt(data_dir + 'obscov_test.csv')
+    obscov_train = np.loadtxt(fold_dir + 'obscov_train.csv')
+    obscov_valid = np.loadtxt(fold_dir + 'obscov_valid.csv')
+    obscov_test  = np.loadtxt(fold_dir + 'obscov_test.csv')
 
     val_ind = np.arange(counts_train.shape[0], counts_train.shape[0] + counts_valid.shape[0])
     counts_train = np.r_[counts_train, counts_valid]
@@ -76,7 +78,7 @@ def fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True
 
     print 'Test log likelihood is ' + str(test_llh['llh'])
 
-    filename = 'result/' + config_to_filename(model_config, fold)
+    filename = data_dir + 'result/' + config_to_filename(model_config, fold)
 
     with open(filename, 'w') as fp:
         pickle.dump(dict(config=config, result=result, model=model), fp)
@@ -87,5 +89,5 @@ if __name__ == "__main__":
     rseed = 27
     np.random.seed(rseed)
 
-    fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True, scale_context=False, downzero=True, use_obscov=True, fold=2)
+    fold_learn(K=10, sigma2ar=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True, fold=0)
 
