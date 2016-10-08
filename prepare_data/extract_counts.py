@@ -21,6 +21,28 @@ def load_sparse_coo(filename):
                      shape = loader['shape'])
 
 
+def denoise(x):
+
+    nzflag = x > 0 
+    y = x[nzflag]
+
+    sind = np.argsort(y) 
+    z = np.sort(y)
+
+    counter = np.arange(1, len(z) + 1)
+    mean = np.cumsum(z).astype(float) / counter
+    var = np.cumsum(z * z).astype(float) / counter - mean * mean
+
+    threshold = np.r_[np.inf, var[0 : -1]] * 3
+    replacement = np.r_[1, mean[0 : -1]]
+
+    repflag = z > threshold 
+    z[repflag] = replacement[repflag] 
+    
+    y[sind] = z
+
+    x[nzflag] = y
+
 
 if __name__ == '__main__':
     
