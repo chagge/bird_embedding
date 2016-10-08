@@ -87,9 +87,24 @@ def elbo(counts, context, obs_cov, model_config, param, func_opt):
             ins_llh = poisson.logpmf(counts, Lamb)
             ins_pos_llh = poisson.logpmf(counts[counts > 0], Lamb[counts > 0])
 
+        #ins_flag = ins_llh < -3e3
+        #mind = np.argmin(ins_llh)
+        #mrow = mind / ins_llh.shape[1]
+        #mcol = mind % ins_llh.shape[1]
+
+        #np.set_printoptions(suppress=True)
+        #print(np.min(ins_llh))
+        #print(ins_llh[mrow, mcol])
+        #print np.c_[counts[mrow, ], np.mean(counts, axis=0)]
+
         llh = np.mean(ins_llh)
         pos_llh = np.mean(ins_pos_llh)
         obj = -llh
+
+        if np.isnan(llh):
+            unan = np.sum(np.isnan(U))
+            obscovnan = np.sum(np.isnan(obs_cov))
+            raise Exception('NaN value in log-likelihood! Some intermediate values: #nan in U is ' + str(unan) + ', and #nan in obs_cov is ' + str(obscovnan) + '.')
 
     if func_opt['cal_grad']:
 
@@ -138,6 +153,10 @@ def elbo(counts, context, obs_cov, model_config, param, func_opt):
             gelbo = np.r_[gelbo, gelbo_beta0]
 
         grad = -gelbo
+        
+        if np.sum(np.isnan(grad)) > 0:
+            qnan = np.sum(np.isnan(Q))
+            raise Exception('NaN value in gradient! Some intermediate values: #nan in Q is ' + str(qnan))
 
     return dict(llh=llh, obj=obj, grad=grad, pos_llh=pos_llh)
 

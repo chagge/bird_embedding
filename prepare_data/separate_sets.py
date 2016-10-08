@@ -23,10 +23,14 @@ def read_pemb_file(filename):
 
 if __name__ == "__main__":
 
-    for rseed in xrange(0, 10):
+    for fold in xrange(0, 10):
     
-        np.random.seed(rseed + 27)
-        data_dir = '../data/subset_pa_201407/'
+        np.random.seed(fold + 27)
+        data_dir = '../data/subset_07/'
+
+        print "use data in directory " + data_dir
+        print "working on fold " + str(fold) + "..."
+
         obs_cov = np.load(data_dir + 'obs_covariates.npy')
         counts = load_sparse_coo(data_dir + 'counts.npz').toarray()
 
@@ -48,7 +52,7 @@ if __name__ == "__main__":
 
 
 
-        fold_dir = data_dir + 'data_folds/' + str(rseed) + '/'
+        fold_dir = data_dir + 'data_folds/' + str(fold) + '/'
         if not os.path.exists(fold_dir):
             os.makedirs(fold_dir)
 

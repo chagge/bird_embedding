@@ -2,19 +2,17 @@
 
 import sys
 import numpy as np
+import cPickle as pickle 
 
 import csv
 from matplotlib import pyplot as plt
 sys.path.append('../lib/tsne')
 from tsne import tsne
+sys.path.append('../experiment')
+from experiment import config_to_filename
 from matplotlib.backends.backend_pdf import PdfPages
 
-def plot_bird(alpha):
-
-    # read in bird names
-    with open('../data/bird_names.csv', 'rb') as csvfile:
-        spamreader = csv.reader(csvfile, delimiter=',')
-        bird_names = spamreader.next()
+def plot_bird(alpha, bird_names):
 
     # perform t-SNE embedding
     vis_data = tsne(alpha)
@@ -44,12 +42,45 @@ def plot_bird(alpha):
     
     plt.show()
 
-    pp = PdfPages('plot.pdf')
-    plt.savefig(pp, format='pdf')
+    #pp = PdfPages('plot.pdf')
+    #plt.savefig(pp, format='pdf')
     
     # print some strange birds 
     #print [bird_names[i] for i in np.where(vis_data[:, 0] > 0.1)[0]]
 
+if __name__ == "__main__":
 
+    data_dir = '../data/subset_07/'
+
+    fold = 0 
+    
+    # embedding from liping's model
+    model_config = dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True)
+    filename = data_dir + 'result/' + config_to_filename(model_config, fold=fold)
+    pkl_file = open(filename, 'rb') 
+    output = pickle.load(pkl_file)
+    model = output['model']
+    vector = model['rho']
+
+
+
+    # embedding from fran's model
+    #mat = np.loadtxt('../baselines/t3677-n1-m216-k10-avgCtxt1/param_rho_it900.txt') 
+    #vector = mat[:, 2:]
+
+    print vector.shape
+    raw_input("Press the <ENTER> key to continue...")
+
+
+    fold_dir = data_dir + 'data_folds/' + str(fold) + '/'
+    species_ind = np.loadtxt(fold_dir + 'nonzero_ind.csv', dtype=int)
+    # read in bird names
+    with open('../data/bird_names.csv', 'rb') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter=',')
+        bird_names = spamreader.next()
+    
+    bird_names = [bird_names[ind] for ind in species_ind]
+
+    plot_bird(vector, bird_names)
 
 

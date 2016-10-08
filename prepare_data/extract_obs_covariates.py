@@ -11,7 +11,7 @@ import numpy as np
 
 if __name__ == '__main__':
     
-    folder = '../data/subset_pa_201407/'
+    folder = '../data/subset_07/'
 
     print 'Reading in data ...'
     
@@ -45,6 +45,22 @@ if __name__ == '__main__':
                                  np.logical_and(18 <= obs_time, obs_time < 24))).T 
        
     covariates = np.concatenate((covariates, covar_type, covar_time), axis=1)
+
+    def fill_nan(x):
+        nanflag = np.isnan(x)
+        if np.sum(nanflag) > 0:
+            fillval = np.mean(x[np.logical_not(nanflag)])
+            x[nanflag] = fillval
+            print "fill " + str(np.sum(nanflag)) + " nan valules " + str(fillval) + " with the mean of " + str(len(nanflag) - np.sum(nanflag)) + " values."
+
+        return 0
+    
+    print np.sum(np.isnan(covariates), 0)
+            
+    print str(np.sum(np.isnan(covariates))) + ' NaN values in covariates before fill'
+    np.apply_along_axis(fill_nan, 0, covariates)
+    print str(np.sum(np.isnan(covariates))) + ' NaN values in covariates after fill'
+    
 
     print 'Saving covariates to file'
 

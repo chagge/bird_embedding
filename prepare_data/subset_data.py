@@ -30,12 +30,13 @@ if __name__ == '__main__':
         df = pandas.read_csv(data_path, sep=',', header='infer', na_values=['X', '?'], na_filter=True, keep_default_na=True)
     
     
-        flag = (180 <= df['DAY']) & (df['DAY'] < 210) 
+        # if only take obs from day 180 to day 209 
+        #flag = (180 <= df['DAY']) & (df['DAY'] < 210) 
 
-        # if only take PA area
-        #flag = ((180 <= df['DAY']) & (df['DAY'] < 210) 
-        #    & ((39 + 43.0/60) < df['LATITUDE']) & (df['LATITUDE'] < 42)
-        #    & (-(80 + 31.0/60) < df['LONGITUDE']) & (df['LONGITUDE'] < -74.3))
+        # if only take obs from day 180 to day 209 in PA area 
+        flag = ((180 <= df['DAY']) & (df['DAY'] < 210) 
+            & ((39 + 43.0/60) < df['LATITUDE']) & (df['LATITUDE'] < 42)
+            & (-(80 + 31.0/60) < df['LONGITUDE']) & (df['LONGITUDE'] < -74.3))
     
         # if only take out eastern wood pewee
         #df = df.loc[flag, ['LATITUDE','LONGITUDE','DAY','TIME', 'COUNT_TYPE', 'EFFORT_HRS', 'EFFORT_DISTANCE_KM', 
@@ -46,8 +47,8 @@ if __name__ == '__main__':
         df = df.loc[flag, :]
 
         #df.to_csv('../data/obs_subset_y' + str(year) + '_d180-210_ewp' + '.csv')
-        #df.to_csv('../data/subset_pa/obs_subset_y' + str(year) + '_d180-210' + '.csv')
-        df.to_csv('../data/subset_07/obs_subset_y' + str(year) + '_d180-210' + '.csv')
+        df.to_csv('../data/subset_pa_201407/obs_subset.csv')
+        #df.to_csv('../data/subset_07/obs_subset.csv')
 
 
 
