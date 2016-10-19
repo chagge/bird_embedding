@@ -14,3 +14,4 @@ job.sh
 *.npz
 *.gz
 lib/
+model_compare_pemb/
