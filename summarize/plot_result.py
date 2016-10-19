@@ -1,5 +1,5 @@
 '''
-This code runs experiment and compare different algorithms 
+This code plot experiment results
 Created on Sep 17, 2016
 
 @author: liuli
@@ -8,9 +8,12 @@ Created on Sep 17, 2016
 import numpy as np
 import sys
 import cPickle as pickle 
+
+sys.path.append('../experiment/')
 from experiment import config_to_filename
 import matplotlib.pyplot as plt
 import seaborn as sns
+import itertools as itl
 
 
 def is_good_convergence(llh_seq):
@@ -22,21 +25,22 @@ def is_good_convergence(llh_seq):
     return True
 
 
-def retrieve_result(model_config):
+def retrieve_result(data_dir, model_config):
      
     llh = np.zeros(10)
     pos_llh = np.zeros(10)
-    index_list = [0, 1, 2, 3, 4, 6, 7, 8] 
+    #index_list = [0, 1, 2, 3, 4, 6, 7, 8] 
+    index_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
 
     for fold in index_list: #xrange(0, 10):
-        filename = 'result/' + config_to_filename(model_config, fold)
+        filename = data_dir + 'result/' + config_to_filename(model_config, fold)
 
         pkl_file = open(filename, 'rb') 
         output = pickle.load(pkl_file)
-        test_llh = output['result']['test_llh']
+        test_llh = output['test_res']
 
-        val_llh = output['model']['val_llh']
-        val_llh_seq = val_llh[val_llh[:, 0] > 0, 1]
+        #val_llh = output['model']['val_llh']
+        #val_llh_seq = val_llh[val_llh[:, 0] > 0, 1]
 
         #if is_good_convergence(val_llh_seq):
         #    raise Exception('Bad convergence ' + str(val_llh_seq) + ' with configuration ' + str(model_config) + ' on fold ' + str(fold))
@@ -82,11 +86,11 @@ def bar_plot(mean, std, legend_names):
 
 
     plt.rcParams.update({'font.size': 18})
-    ax.set_ylim([0, 12])
+    ax.set_ylim([0, np.max(mean + std) * 1.28])
     ax.set_ylabel('negative log-likelihood', fontsize=20)
-    ax.set_title('Predictive log-likelihood per item with different settings', fontsize=22)
+    ax.set_title('Predictive log-likelihood per count with different settings', fontsize=22)
     ax.set_xticks(ind + width)
-    ax.set_xticklabels(('per item', 'per positive item'), fontsize=20)
+    ax.set_xticklabels(('per count', 'per positive count'), fontsize=20)
 
     ax.legend(tuple(temp_list), tuple(legend_names), fontsize=20)
 
@@ -94,44 +98,77 @@ def bar_plot(mean, std, legend_names):
 
 if __name__ == "__main__":
 
-    #configs = []
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=False, use_obscov=False))
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=False))
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
+    data_dir = '../data/subset_pa_201407/'
 
-    #legend_names = ['no dw zeros', 'dw zeros w/o covariates', 'dw zeros w/ covariates']
+    base_config = dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, 
+                        scale_context=False, normalize_context=False, downzero=False, use_obscov=False, zeroweight=1.0)
+
+    #base_config = dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='softplus', intercept_term=True, 
+    #                    scale_context=False, normalize_context=False, downzero=True, use_obscov=True, zeroweight=1.0)
     
-    #configs = []
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=False, downzero=True, use_obscov=True))
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
-    #legend_names = ['not scale context', 'scale context']
+    comparison = 'scale_context'
+    
+    if comparison == 'K':
+        legend_names = ['K = 5', 'K = 10', 'K = 20']
+        configs = [base_config.copy() for i in xrange(0, len(legend_names))] 
+        configs[0]['K'] = 5
+        configs[1]['K'] = 10
+        configs[2]['K'] = 20
+    
+    elif comparison == 'link_func':
+        legend_names = ['exp', 'softplus']
+        configs = [base_config.copy() for i in xrange(0, len(legend_names))] 
+        configs[0]['K'] = 5
+        configs[0]['link_func'] = 'exp'
+        configs[1]['link_func'] = 'softplus'
+
+    elif comparison == 'intercept_term':
+        legend_names = ['w/o intercept term', 'w/ intercept term']
+        configs = [base_config.copy() for i in xrange(0, len(legend_names))] 
+        configs[0]['intercept_term'] = False
+        configs[1]['intercept_term'] = True
+
+    elif comparison == 'scale_context':
+        legend_names = ['no measure', 'scale context by species/column', 'scale context by checklist/row']
+        configs = [base_config.copy() for i in xrange(0, len(legend_names))] 
+        configs[0]['scale_context'] = False
+        configs[0]['normalize_context'] = False
+
+        configs[1]['scale_context'] = True
+        configs[1]['normalize_context'] = False
+
+        configs[2]['scale_context'] = False
+        configs[2]['normalize_context'] = True
+    
+
+    elif comparison == 'downzero':
+        legend_names = ['weight = 1.0', 'weight = 0.5', 'weight = 0.1', 'weight = 0.0', 'bias only', 'observation']
+        configs = [base_config.copy() for i in xrange(0, len(legend_names))] 
+        configs[0]['downzero'] = False
+        configs[0]['use_obscov'] = False
+        configs[0]['zeroweight'] = 1.0
+
+        configs[1]['downzero'] = False
+        configs[1]['use_obscov'] = False
+        configs[1]['zeroweight'] = 0.5
+
+        configs[2]['downzero'] = False
+        configs[2]['use_obscov'] = False
+        configs[2]['zeroweight'] = 0.1
+
+        configs[3]['downzero'] = False
+        configs[3]['use_obscov'] = False
+        configs[3]['zeroweight'] = 0.0
+
+        configs[4]['downzero'] = True
+        configs[4]['use_obscov'] = False
+        configs[4]['zeroweight'] = 1.0
 
 
-    configs = []
-    configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
-    configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=True, scale_context=True, downzero=True, use_obscov=True))
-    legend_names = ['no intercept', 'intercept']
+        configs[5]['downzero'] = True
+        configs[5]['use_obscov'] = True
+        configs[5]['zeroweight'] = 1.0
 
-
-    #configs = []
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=True, scale_context=True, downzero=True, use_obscov=True))
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='softplus', intercept_term=True, scale_context=True, downzero=True, use_obscov=True))
-    #legend_names = ['exp', 'softplus']
-
-    #configs = []
-    #configs.append(dict(K=5, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
-    #configs.append(dict(K=20, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
-
-    #legend_names = ['K=5', 'K=10', 'K=20']
-
-    #configs = []
-    #configs.append(dict(K=10, sigma2a=1, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
-    #configs.append(dict(K=10, sigma2a=10, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
-    #configs.append(dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True))
-
-    #legend_names = ['sigma2=1', 'sigma2=10', 'sigma2=100']
- 
 
 
     mean = np.zeros((len(configs), 2))
@@ -141,12 +178,12 @@ if __name__ == "__main__":
 
         model_config = configs[ival] 
 
-        res = retrieve_result(model_config)
-        mean[ival, 0] = np.mean(res['llh'])
-        mean[ival, 1] = np.mean(res['pos_llh'])
+        res = retrieve_result(data_dir, model_config)
+        mean[ival, 0] = np.mean(res['pos_llh'])
+        mean[ival, 1] = np.mean(res['llh'])
 
-        std[ival, 0] = np.std(res['llh'])
-        std[ival, 1] = np.std(res['pos_llh'])
+        std[ival, 0] = np.std(res['pos_llh'])
+        std[ival, 1] = np.std(res['llh'])
 
     mean = - mean
 
