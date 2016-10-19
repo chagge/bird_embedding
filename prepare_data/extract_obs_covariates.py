@@ -11,11 +11,11 @@ import numpy as np
 
 if __name__ == '__main__':
     
-    folder = '../data/subset_07/'
+    folder = '../data/subset_pa_201407/'
 
     print 'Reading in data ...'
     
-    ebird_data = pd.read_csv(folder + 'obs_subset_y2014_d180-210.csv')
+    ebird_data = pd.read_csv(folder + 'obs_subset.csv')
   
     covariates = ebird_data.loc[:, ['EFFORT_HRS', 'EFFORT_DISTANCE_KM', 'EFFORT_AREA_HA', 'NUMBER_OBSERVERS']].as_matrix()
 
@@ -55,8 +55,6 @@ if __name__ == '__main__':
 
         return 0
     
-    print np.sum(np.isnan(covariates), 0)
-            
     print str(np.sum(np.isnan(covariates))) + ' NaN values in covariates before fill'
     np.apply_along_axis(fill_nan, 0, covariates)
     print str(np.sum(np.isnan(covariates))) + ' NaN values in covariates after fill'

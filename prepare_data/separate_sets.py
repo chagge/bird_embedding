@@ -23,17 +23,16 @@ def read_pemb_file(filename):
 
 if __name__ == "__main__":
 
+    data_dir = '../data/subset_pa_201407/'
+    print "use data in directory " + data_dir
     for fold in xrange(0, 10):
     
         np.random.seed(fold + 27)
-        data_dir = '../data/subset_07/'
 
-        print "use data in directory " + data_dir
         print "working on fold " + str(fold) + "..."
 
         obs_cov = np.load(data_dir + 'obs_covariates.npy')
         counts = load_sparse_coo(data_dir + 'counts.npz').toarray()
-
 
         # seperate the dataset into train, validation, and test sets
         tr_frac = 0.67
@@ -49,7 +48,6 @@ if __name__ == "__main__":
         valind = index[ntr : ntr + nval]
         # test
         stind = index[ntr + nval : ]
-
 
 
         fold_dir = data_dir + 'data_folds/' + str(fold) + '/'

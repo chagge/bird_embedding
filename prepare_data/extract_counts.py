@@ -28,8 +28,6 @@ def denoise(x):
     nzflag = x > 0 
     y = x[nzflag]
 
-    np.set_printoptions(threshold=np.inf)
-
     #print "y------------------"
     #print y
 
@@ -62,11 +60,11 @@ def denoise(x):
         if np.sum(x_back != x) > 0:
             raise Exception('Not recovering original array')
             
-    return 0
+    return x
 
 if __name__ == '__main__':
     
-    folder = '../data/subset_pa_201407/'
+    folder = '../data/subset_201407/'
 
     print 'Reading in data ...'
     
