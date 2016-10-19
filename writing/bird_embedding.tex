@@ -61,7 +61,7 @@ In the embedding model, we essentially need to define the conditional distributi
 
 The exposure model can be used to describe the observation process. Mathematically, it plays the role of down-weighting zero entries in the observation matrix. In another word, a species is not observed either because no such bird lives there or because it is not detected by that observation. If the model choose the second explanation, then model would use little strength to fit the zero value. We will see this after we have defined the model formally.  
 
-Let's define the model. Suppose there are $N$ checklists, and let $i$, $1 \le i \le N$, index checklists. In the data there are $J = 214$ species, each of which is indexed by $j$, $1 \le j \le J$.  
+Let's define the model. Suppose there are $N$ checklists, and let $i$, $1 \le i \le N$, index checklists. In the data there are $J \approx 180$ species, each of which is indexed by $j$, $1 \le j \le J$.  
 In each checklist $i$, $y_{ij}$ birds are observed for species $j$. 
 
 For each checklist, the feature vector $\mathbf{x}_{i}$ brings some information of the observation process. The probability $u_{ij}$ of observing each species $j$ is calculated as $u_{ij} = \mathrm{logistic}(\obswt_j^\top \mathbf{x}_i + \bar{\beta}_j)$, where $\obswt_j$ is a parameter, and $\bar{\beta}_j$ is the intercept term. The indicator $b_{ij}$ of observing species $j$ at checklist $i$ is sampled from Bernoulli distribution with probability $u_{ij}$. 
