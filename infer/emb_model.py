@@ -5,6 +5,7 @@ import scipy
 import scipy.special as special
 from scipy.stats import poisson
 import sys
+import warnings
 
 def softplus(x):
     y = x.copy()
@@ -30,6 +31,8 @@ class EmbModel:
     model_param = None 
     context_scale = None
 
+    sanity_check = False 
+
     def __init__(self, config):
         self.model_config = config['model_config']
         self.learn_config = config['learn_config']
@@ -48,17 +51,17 @@ class EmbModel:
         nspecies = sizes['nspecies']
 
         self.model_param = dict()    
-        self.model_param['alpha'] = (np.random.rand(nspecies, K) - 0.5) * 1e0
-        self.model_param['rho'] = (np.random.rand(nspecies, K) - 0.5) * 1e0
+        self.model_param['alpha'] = (np.random.rand(nspecies, K) - 0.3) * 1e-1
+        self.model_param['rho'] = (np.random.rand(nspecies, K) - 0.3) * 1e-1
 
         if self.model_config['intercept_term']:
-            self.model_param['rho0'] = np.random.rand(nspecies) * 1e-2
+            self.model_param['rho0'] = np.random.rand(nspecies) * 1e0
 
         if self.model_config['downzero']:
-            self.model_param['beta0'] = np.random.rand(nspecies) * 1e-2
+            self.model_param['beta0'] = np.random.rand(nspecies) * 1e0
             if self.model_config['use_obscov']:
                 nvar = sizes['ncovar'] 
-                self.model_param['beta'] = np.random.rand(nspecies, nvar) * 1e-2
+                self.model_param['beta'] = np.random.rand(nspecies, nvar) * 1e0
     
         if self.model_config['scale_context']:
             context_scale = np.ones(nspecies) 
@@ -122,7 +125,6 @@ class EmbModel:
             ncovar = obs_cov.shape[1]
         K = self.model_config['K']
 
-
         # dispatch parameters if necessary
         model_param = param if isinstance(param, dict) else self.__dispatch_param(param, dict(nspecies=nspecies, ncovar=ncovar))
 
@@ -171,7 +173,14 @@ class EmbModel:
         else:
             linkfunc = softplus
             grad_linkfunc = grad_softplus
-    
+
+        if self.sanity_check:
+            if np.max(H) > 600:
+                raise Exception('Some values in H matrix are too large, over 600')
+
+            if np.max(H) > 100:
+                warnings.warn('Some values in H matrix is over 100')
+            
         epsilon = 0.00001 
         Lamb = linkfunc(H) 
         Lamb = Lamb + epsilon
@@ -202,7 +211,8 @@ class EmbModel:
             if np.isnan(llh):
                 lnan = np.sum(np.isnan(Lamb))
                 llhnan = np.sum(np.isnan(ins_llh))
-                raise Exception('NaN value in log-likelihood! Some intermediate values: #nan in Lambda is ' + str(lnan) + ', and #nan in instance llh is ' + str(llhnan) + '.')
+                raise Exception('NaN value in log-likelihood! Some intermediate values: \
+                                 #nan in Lambda is ' + str(lnan) + ', and #nan in instance llh is ' + str(llhnan) + '.')
     
         if cal_grad:
     
@@ -225,6 +235,9 @@ class EmbModel:
                 Temp = Q * Temp 
                 grad_counts = np.sum(Q) 
 
+            if self.sanity_check:
+                qnan = np.sum(np.isnan(Q))
+                raise Exception('Find %d NaN values in Q! The largest lambda value is %f' % (qnan, np.max(Lamb)))
 
             Dprod = Temp / normalizer if self.model_config['normalize_context'] else Temp
 

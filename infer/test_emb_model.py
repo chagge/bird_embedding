@@ -4,80 +4,85 @@ import numpy as np
 import sys
 
 from emb_model import *
-from context import *
-import learn_emb 
 sys.path.append('../prepare_data/')
 from extract_counts import load_sparse_coo
 
-
 def test_gradient(counts, context, obs_cov):
     
-    sind = np.arange(2, 30)
+    sind = np.arange(2, 3)
     counts = counts[sind, :].reshape(len(sind), -1)
     context = context[sind, :].reshape(len(sind), -1)
     obs_cov = obs_cov[sind, :].reshape(len(sind), -1)
-
-
     counts = np.round(counts)
-    nspecies = counts.shape[1]
 
+    nspecies = counts.shape[1]
     ncovar = obs_cov.shape[1]
+
+    config = dict(learn_config=None)
 
     for downzero in xrange(0, 2):
         for use_obscov in xrange(0, 2):
             for intercept_term in xrange(0, 2):
                 for link_func in ['exp', 'softplus']:
-                    config = dict(downzero=downzero, use_obscov=use_obscov, intercept_term=intercept_term, link_func=link_func, valid_frac=0.1, K = 10, sigma2a=0.1, sigma2r=1, sigma2b=10)
+                    for zeroweight in [0, 0.1, 0.5, 1]:
+                        for normalize_context in xrange(0, 2):
 
-                    K = config['K'] 
-                    func_opt = dict(cal_obj=True, cal_grad=True, cal_llh=True)
-                    # intialize a parameter
+                            model_config = dict(downzero=downzero, use_obscov=use_obscov, zeroweight=zeroweight, 
+                                                intercept_term=intercept_term, link_func=link_func, 
+                                                normalize_context=normalize_context, 
+                                                K = 10, sigma2a=0.1, sigma2r=1, sigma2b=10, scale_context=0)
 
-                    param = np.random.rand(nspecies *(2 * K + config['intercept_term'] + (ncovar * config['use_obscov'] + 1) * config['downzero'])) * 1e-1 - 0.05
+                            config['model_config'] = model_config
 
-                    res1 = elbo(counts, context, obs_cov, config, param, func_opt=func_opt)
-                    mod1 = emb_model(counts, context, obs_cov, config, param, func_opt=func_opt)
+                            emb_model = EmbModel(config)
 
-                    param2 = param.copy()
-                    dalpha = 1e-8 * np.random.rand(nspecies * K)
-                    drho   = 1e-8 * np.random.rand(nspecies * K)
-                    drho0  = 1e-8 * np.random.rand(nspecies)
-                    dbeta  = 1e-8 * np.random.rand(nspecies * ncovar)
-                    dbeta0 = 1e-8 * np.random.rand(nspecies)
+                            K = model_config['K'] 
+                            param_vec = np.random.rand(nspecies *(2 * K + model_config['intercept_term'] + 
+                                                       (ncovar * model_config['use_obscov'] + 1) * model_config['downzero'])) - 0.2 
 
-                    dparam = np.r_[dalpha, drho]
-                    if config['intercept_term']:
-                        dparam = np.r_[dparam, drho0]
-                    
-                    if config['downzero']:
-                        if config['use_obscov']:
-                            dparam = np.r_[dparam, dbeta]
-                        dparam = np.r_[dparam, dbeta0]
+                            
+                            res1 = emb_model.elbo(counts, context, obs_cov, param_vec)
+                            mod1 = emb_model.eval_grad(counts, context, obs_cov, param_vec)
 
-                    param2 = param + dparam
+                            dalpha = 1e-8 * np.random.rand(nspecies * K)
+                            drho   = 1e-8 * np.random.rand(nspecies * K)
+                            drho0  = 1e-8 * np.random.rand(nspecies)
+                            dbeta  = 1e-8 * np.random.rand(nspecies * ncovar)
+                            dbeta0 = 1e-8 * np.random.rand(nspecies)
+                            dparam = np.r_[dalpha, drho]
+                            if model_config['intercept_term']:
+                                dparam = np.r_[dparam, drho0]
+                            
+                            if model_config['downzero']:
+                                if model_config['use_obscov']:
+                                    dparam = np.r_[dparam, dbeta]
+                                dparam = np.r_[dparam, dbeta0]
+                            param_vec2 = param_vec + dparam
 
-                    res2 = elbo(counts, context, obs_cov, config, param2, func_opt=func_opt)
-                    mod2 = emb_model(counts, context, obs_cov, config, param2, func_opt=func_opt)
+                            res2 = emb_model.elbo(counts, context, obs_cov, param_vec2)
+                            mod2 = emb_model.eval_grad(counts, context, obs_cov, param_vec2)
 
-                    diffv = res2['obj'] - res1['obj']
-                    diffp = np.dot(res1['grad'], dparam) 
-                    reld =  (diffv - diffp)  / np.abs(diffp)
+                            diffv = res2['obj'] - res1['obj']
+                            diffp = np.dot(res1['grad'], dparam) 
+                            reld =  (diffv - diffp)  / np.abs(diffp)
 
-                    print '--------------------------------------------'
-                    print 'value difference of numerical grad and analytical grad (elbo) '
-                    print diffv
-                    print diffp
-                    print reld
-                    assert(reld < 1e-3)
+                            print '--------------------------------------------'
+                            print model_config
+                            print 'value difference of numerical grad and analytical grad (elbo) '
+                            print diffv
+                            print diffp
+                            print reld
+                            assert(reld < 1e-5)
 
-                    diffv = mod2['obj'] - mod1['obj']
-                    diffp = np.dot(mod1['grad'], dparam) 
-                    reld =  (diffv - diffp)  / np.abs(diffp)
-                    print 'relative difference of numerical grad and analytical grad (model)'
-                    print diffv
-                    print diffp
-                    print reld
-                    assert(reld < 1e-3)
+                            diffv = mod2['obj'] - mod1['obj']
+                            diffp = np.dot(mod1['grad'], dparam) 
+                            reld =  (diffv - diffp)  / np.abs(diffp)
+                            print 'relative difference of numerical grad and analytical grad (model)'
+                            print diffv
+                            print diffp
+                            print reld
+                            assert(reld < 1e-5)
+                     
 
 
 if __name__ == "__main__":
@@ -87,7 +92,7 @@ if __name__ == "__main__":
     obs_cov = np.load(data_dir + 'obs_covariates.npy')
     counts = load_sparse_coo(data_dir + 'counts.npz')
     counts = counts.toarray()
-    context = counts_to_context(counts)
+    context = counts
  
 
     test_gradient(counts, context, obs_cov)
