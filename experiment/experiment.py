@@ -6,9 +6,7 @@ sys.path.append('../prepare_data/')
 from extract_counts import load_sparse_coo
 
 sys.path.append('../infer/')
-from emb_model import * 
-from learn_emb import * 
-from context import *
+from emb_model import EmbModel 
 
 
 import scipy.sparse as sparse
@@ -21,8 +19,10 @@ def config_to_filename(model_config, fold):
     filename = ('experiment' + '_k' + str(int(model_config['K']))
                              + '_lf' + model_config['link_func']  
                              + '_sc' + str(int(model_config['scale_context'])) 
+                             + '_nc' + str(int(model_config['normalize_context'])) 
                              + '_it' + str(int(model_config['intercept_term'])) 
                              + '_dz'  + str(int(model_config['downzero'])) 
+                             + '_pl'  + str(int(model_config['zeroweight'])) 
                              + '_uo' + str(int(model_config['use_obscov'])) 
                              + '_sa' + str(int(model_config['sigma2a'])) 
                              + '_sb' + str(int(model_config['sigma2b'])) 
@@ -31,9 +31,12 @@ def config_to_filename(model_config, fold):
     return filename
 
 
-def fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True, scale_context=False, downzero=True, use_obscov=True, fold=0):
+def fold_learn(K=10, sigma2ar=1, sigma2b=1, 
+               link_func='exp', intercept_term=True, 
+               scale_context=False, normalize_context=True,
+               downzero=True, use_obscov=True, zeroweight=1.0, 
+               data_dir='../data/subset_pa_201407/', fold=0):
 
-    data_dir = '../data/subset_07/'
     fold_dir = data_dir + 'data_folds/' + str(fold) + '/'
 
     print 'Experiment on data fold %d' + fold_dir 
@@ -51,37 +54,40 @@ def fold_learn(K=10, sigma2ar=1, sigma2b=1, link_func='exp', intercept_term=True
     obscov_valid = np.loadtxt(fold_dir + 'obscov_valid.csv')
     obscov_test  = np.loadtxt(fold_dir + 'obscov_test.csv')
 
-    val_ind = np.arange(counts_train.shape[0], counts_train.shape[0] + counts_valid.shape[0])
+    #counts_valid = counts_test
+    #obscov_valid = obscov_test
+
+    #val_ind = np.arange(counts_train.shape[0], counts_train.shape[0] + counts_valid.shape[0])
+    val_ind = np.random.choice(np.arange(0, counts_train.shape[0] + counts_valid.shape[0]), size=500, replace=False)
+
     counts_train = np.r_[counts_train, counts_valid]
     obscov_train = np.r_[obscov_train, obscov_valid]
 
+    context_train = counts_train
+    context_test = counts_test
+
     print 'The embeddint task has %d tuples, %d species' % (counts_train.shape[0], counts_train.shape[1])
     
-    opt_config = dict(eta=0.002, max_iter=1000000, batch_size=1,  print_niter=2000, min_improve=1e-4, display=1)
-    model_config = dict(K=K, sigma2a=sigma2ar, sigma2b=sigma2b, sigma2r=sigma2ar, link_func=link_func, intercept_term=intercept_term, scale_context=scale_context, downzero=downzero, use_obscov=use_obscov)
-    valid_config = dict(valid_ind=val_ind)
-    config = dict(opt_config=opt_config, model_config=model_config, valid_config=valid_config)
+    learn_config = dict(eta=0.002, max_iter=1000000, batch_size=1,  print_niter=5000, min_improve=1e-3, display=1, valid_ind=val_ind)
+    model_config = dict(K=K, sigma2a=sigma2ar, sigma2b=sigma2b, sigma2r=sigma2ar, 
+                        link_func=link_func, intercept_term=intercept_term, 
+                        scale_context=scale_context, normalize_context=normalize_context, 
+                        downzero=downzero, use_obscov=use_obscov, zeroweight=zeroweight)
+    config = dict(learn_config=learn_config, model_config=model_config)
 
-    context_train = counts_train.copy()
-    context_test = counts_test.copy()
-    if config['model_config']['scale_context']:
-        s = counts_pos95percent(context_train)
-        s[s <= 0] = 1
-        context_train = context_train / s
-        context_test = context_test / s
+    emb_model = EmbModel(config)
+    #emb_model.sanity_check = True
 
-    model = learn(counts_train, context_train, obscov_train, config)
-    
-    test_llh = emb_model(counts_test[:, model['nonzero_ind']], context_test[:, model['nonzero_ind']], obscov_test, model_config, model, dict(cal_grad=False, cal_obj=True))
+    train_log = emb_model.learn(counts_train, context_train, obscov_train)
+    test_res = emb_model.test(counts_test, context_test, obscov_test)
+    print 'Test log-likelihood and positive log-likelihood is %.3f and %.3f' % (test_res['llh'], test_res['pos_llh'])
 
-    result = dict(test_llh=test_llh) 
-
-    print 'Test log likelihood is ' + str(test_llh['llh'])
-
+    result = dict(train_log=train_log, test_res=test_res, emb_model=emb_model) 
     filename = data_dir + 'result/' + config_to_filename(model_config, fold)
 
     with open(filename, 'w') as fp:
-        pickle.dump(dict(config=config, result=result, model=model), fp)
+        pickle.dump(result, fp)
+
 
 
 if __name__ == "__main__":
@@ -89,5 +95,10 @@ if __name__ == "__main__":
     rseed = 27
     np.random.seed(rseed)
 
-    fold_learn(K=10, sigma2ar=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True, fold=0)
+    fold_learn(K=10, sigma2ar=100, sigma2b=100, 
+               link_func='exp', intercept_term=False, 
+               scale_context=False, normalize_context=False,
+               downzero=False, use_obscov=False, zeroweight=1.0, 
+               data_dir='../data/subset_pa_201407/', fold=0)
+
 
