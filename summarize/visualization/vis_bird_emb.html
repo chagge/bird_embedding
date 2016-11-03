@@ -21,7 +21,7 @@
     position: absolute;
     line-height: .7;
     font-weight: bold;
-    padding: 8px;
+    padding: 10px;
     background: rgba(255, 255, 255, 0.99);
     color: #fff;
     font-weight: bold;
@@ -41,9 +41,9 @@
 
   .datapoints svg 
   {
-    width: 300px;
-    height: 35px;
-    padding-right: 100px;
+    width: 30px;
+    height: 18px;
+    padding-right: 0px;
     font: 14px arial;
   }
   .datapoints circle 
@@ -76,7 +76,7 @@
     float: left;
     color: #000000;
     padding-left: 45px;
-    padding-right: 15px;
+    padding-right: 25px;
     -webkit-border-radius: 5px;
     -moz-border-radius: 50px;
     border-radius: 30px;
@@ -135,7 +135,7 @@
     {"word" : "safeway ckn thighs b/s evp", "coord" : [6.803751,55.91691], "fill" : "0.84693877551", "stroke" : "blue", "category" : "meat"},
     */---->
 
-    <script src="bird_emb.js"></script>
+    <script src="birdemb.js"></script>
     
     <form method="get" action="/search" id="search">
     <input name="q" type="text" size="40" placeholder="Search..." />
@@ -201,12 +201,12 @@
             document.getElementById('map'), 
             {
                 draggableCursor: 'crosshair',
-                zoom: 6,
+                zoom: 5.4,
                 center: myLatlng,
                 streetViewControl: false,
                 zoomControl: true,
                 zoomControlOptions: {
-                position: google.maps.ControlPosition.LEFT_CENTER
+                    position: google.maps.ControlPosition.LEFT_CENTER
                 },
                 scaleControl: true,
                 mapTypeId: 'coordinate',
@@ -248,40 +248,51 @@
                     .style("opacity", 0);
 
                 var marker = layer.selectAll("svg")
-                    .data(d3.entries(markers))
-                    .each(transform)
-                    .enter().append("svg:svg")
-                    .each(transform)
-                    .attr("class", "marker");
+                                  .data(d3.entries(markers))
+                                  .each(transform)
+                                  .enter().append("svg:svg")
+                                  .each(transform)
+                                  .attr("class", "marker");
+
+
+                marker.append("text")
+                      .attr("x", padding+10)
+                      .attr("y", padding)
+                      .attr("dy", ".31em")
+                      .text(function(d) 
+                          {
+                            if (d.value.word!=null)
+                                return d.value.word;
+                            else
+                                return "";
+                          });
+
 
                 marker.append("svg:circle")
                       .attr("r", function(d) 
                           { 
-                            if (d.value.word!=null) return 4.5;
-                            else return 6.5;;
+                            if (d.value.word!=null) return 7.0;
+                            else return 5.0;
                           })
                       .attr("cx", padding)
                       .attr("cy", padding)
-                    //.attr("fill", function(d) 
-                    //{ 
-                    //return d.value.fill;
-                    //})
-                      .attr("stroke", function(d) 
+                      .attr("fill", function(d) 
                           { 
-                            return d.value.stroke;
+                            return d.value.fill;
                           })
-                    //.attr("stroke-width","5")
+                      .attr("stroke", "black")
+                      .attr("stroke-width","2")
                       .on("mouseover", function(d) 
                         {
-                                if (d.value.equation!=null)
-                                {
-                                    tooltip.transition()
-                                           .duration(200)
-                                           .style("opacity", .9)
-                                    tooltip.html("<span style='color:red'><img src='"+ d.value.equation+"'></span>")
-                                           .style("left", (d3.event.pageX + 5) + "px")
-                                           .style("top", (d3.event.pageY - 28) + "px")
-                                }
+                            if (d.value.equation!=null)
+                            {
+                                tooltip.transition()
+                                       .duration(200)
+                                       .style("opacity", .9)
+                                tooltip.html("<span style='color:red'><img src='"+ d.value.equation+"'></span>")
+                                       .style("left", (d3.event.pageX + 5) + "px")
+                                       .style("top", (d3.event.pageY - 28) + "px")
+                            }
                         })
                       .on("mouseout", function(d) 
                         {
@@ -304,27 +315,30 @@
                                 return "#ccc";
                             }
                         });
-        
-                marker.append("text")
-                      .attr("x", padding+7)
-                      .attr("y", padding)
-                      .attr("dy", ".31em")
-                      .text(function(d) 
-                          {
-                            if (d.value.word!=null)
-                                return d.value.word;
-                            else
-                                return "";
-                          });
+
+                function getTextWidth(text, font) {
+                    // re-use canvas object for better performance
+                    var canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+                    var context = canvas.getContext("2d");
+                    context.font = font;
+                    var metrics = context.measureText(text);
+                    return metrics.width;
+                }
+
+
           
                 function transform(d) 
                 {
+                    basesize = 18
+                    font = "14px arial"
+                    width = getTextWidth(d.value.word, font) + basesize
                     d = new google.maps.LatLng(d.value.coord[1], d.value.coord[0]);
                     d = projection.fromLatLngToDivPixel(d);
                     return d3.select(this)
                              .style("left", (d.x - padding) + "px")
-                             .style("top", (d.y - padding) + "px");
-                           //.attr('fill', color(d.value[2]))  
+                             .style("top", (d.y - padding) + "px")
+                             .style("height", basesize)
+                             .style("width", width);
                 }
             };
         };
