@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import cPickle as pickle 
+import os
 
 sys.path.append('../prepare_data/')
 from extract_counts import load_sparse_coo
@@ -35,7 +36,7 @@ def fold_learn(K=10, sigma2ar=1, sigma2b=1,
                link_func='exp', intercept_term=True, 
                scale_context=False, normalize_context=True,
                downzero=True, use_obscov=True, zeroweight=1.0, 
-               data_dir='../data/subset_pa_201407/', fold=0):
+               data_dir='../data/subset_pa/', fold=0):
 
     fold_dir = data_dir + 'data_folds/' + str(fold) + '/'
 
@@ -85,6 +86,14 @@ def fold_learn(K=10, sigma2ar=1, sigma2b=1,
     result = dict(train_log=train_log, test_res=test_res, emb_model=emb_model) 
     filename = data_dir + 'result/' + config_to_filename(model_config, fold)
 
+    # create folder if not exist
+    if not os.path.exists(os.path.dirname(filename)):
+        try:
+            os.makedirs(os.path.dirname(filename))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+
     with open(filename, 'w') as fp:
         pickle.dump(result, fp)
 
@@ -95,10 +104,10 @@ if __name__ == "__main__":
     rseed = 27
     np.random.seed(rseed)
 
-    fold_learn(K=10, sigma2ar=100, sigma2b=100, 
-               link_func='exp', intercept_term=False, 
+    fold_learn(K=20, sigma2ar=100, sigma2b=100, 
+               link_func='softplus', intercept_term=True, 
                scale_context=False, normalize_context=False,
-               downzero=False, use_obscov=False, zeroweight=1.0, 
-               data_dir='../data/subset_pa_201407/', fold=0)
+               downzero=True, use_obscov=True, zeroweight=1.0, 
+               data_dir='../data/subset_pa/', fold=0)
 
 

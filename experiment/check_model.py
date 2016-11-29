@@ -1,5 +1,5 @@
 '''
-This code runs experiment and compare different algorithms 
+This code check the training result 
 Created on Sep 17, 2016
 
 @author: liuli
@@ -12,51 +12,31 @@ import cPickle as pickle
 sys.path.append('../prepare_data/')
 from extract_counts import load_sparse_coo
 sys.path.append('../infer/')
-from emb_model import emb_model
-
+from emb_model import EmbModel 
 from experiment import config_to_filename
 
-
 import scipy.sparse as sparse
-from extract_counts import load_sparse_coo
 from separate_sets import read_pemb_file
 
 
 if __name__ == "__main__":
 
-    rseed = 27
-    np.random.seed(rseed)
 
-    fold = 5 
+    data_dir = '../data/subset_pa_201407/'
+    fold = 0 
 
     model_config = dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, scale_context=True, downzero=True, use_obscov=True)
-    filename = 'result/' + config_to_filename(model_config, fold=5)
+    filename = data_dir + 'result/experiment_k10_lfexp_sc0_nc1_it0_dz0_pl1_uo0_sa10000_sb10_f0.pkl'# + config_to_filename(model_config, fold=fold)
+    filename = 'compare.pkl'# + config_to_filename(model_config, fold=fold)
 
     pkl_file = open(filename, 'rb') 
     output = pickle.load(pkl_file)
-    model = output['model']
-    config = output['config']
-    test_llh = output['result']['test_llh']
-    model_config = config['model_config']
+    model = output['emb_model']
+    train_log = output['train_log']
 
-    print 'alpha ---------------------------------------'
-    print model['alpha']
-    print 'rho ---------------------------------------'
-    print model['rho']
-    if model_config['intercept_term']:
-        print 'rho0 ---------------------------------------'
-        print model['rho0']
-    if model_config['use_obscov']:
-        print 'beta ---------------------------------------'
-        print model['beta']
-    if model_config['downzero']:
-        print 'beta0 ---------------------------------------'
-        print model['beta0']
-        
+    test_res = output['test_res']
     
-    print 'Test log likelihood is ' + str(test_llh['llh'])
-    print 'Test pos log likelihood is ' + str(test_llh['pos_llh'])
-
-
+    print model.model_param['alpha']
+    print test_res
 
 
