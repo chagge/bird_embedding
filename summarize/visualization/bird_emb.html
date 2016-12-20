@@ -18,6 +18,9 @@
 .svgText {
     font:14px arial;
 }
+.labelText {
+    font:24px;
+}
 .highlight {
     font:24px arial;
 }
@@ -29,7 +32,8 @@
 </style>
 <body>
 <input type="button" name="Submit" value="highlight" onmousedown="return handleClick()" onmouseup="return recoverClick()" >
-<input type="text" id="myVal" placeholder="species">
+<input type="text" id="myVal" placeholder="Blue_Jay">
+(Examples: Blue_Jay, American_Robin, Blue-winged_Warbler, ...)
 
 <script src="birdemb.js"></script>
 <script src="http://d3js.org/d3.v3.min.js"></script>
@@ -60,7 +64,7 @@ var zoom = d3.behavior.zoom()
     .on("zoom", zoomed);
 
 var paragraph = d3.select("body").append("p")
-paragraph.append("text").text("zoom: ")
+paragraph.append("text").text("slide to zoom: ")
 
 var slider = paragraph.append("input")
   .datum({})
@@ -70,6 +74,11 @@ var slider = paragraph.append("input")
   .attr("max", zoom.scaleExtent()[1])
   .attr("step", (zoom.scaleExtent()[1] - zoom.scaleExtent()[0]) / 100)
   .on("input", slided);
+
+paragraph.append("text").text("\u00A0 \u00A0 \u00A0(or double click to zoom in; shift+double click to zoom out)")
+var paragraph2= d3.select("body").append("p")
+paragraph2.append("text").text("mouse over dot to view the bird")
+
 
 var svg = d3.select("body").append("svg")
     .attr("width", width + margin.left + margin.right)
@@ -132,7 +141,7 @@ function handleClick(event)
               flag = d.value.species === species
               return flag
               });
-  theNode.style("font", 24 / gscale + "px arial");
+  theNode.style("font", 24 / gscale + "px arial").style("fill", "red");
   return false;
 }
 
@@ -158,13 +167,9 @@ function zoomed() {
 }
 
 function slided(d){
-  zoom.translate([0, 0]).scale(d3.select(this).property("value"))
+  zoom.translate(gcenter).scale(d3.select(this).property("value"))
     .event(svg);
 }
 
-function popinfo(d)
-{
-    d3.select(this).style("color", "black");
-}
 
 </script>
