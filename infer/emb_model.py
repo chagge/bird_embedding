@@ -286,7 +286,7 @@ class EmbModel:
                 qnan = np.sum(np.isnan(Q))
                 raise Exception('NaN value in gradient! Some intermediate values: #nan in Q is ' + str(qnan))
     
-        return dict(llh=llh, obj=obj, grad=grad, pos_llh=pos_llh)
+        return dict(llh=llh, obj=obj, grad=grad, pos_llh=pos_llh, scale_weight=1.0/overall_weight)
 
 
     def eval_grad(self, counts, context, obs_cov, param, cal_obj=True, cal_grad=True):
@@ -308,13 +308,13 @@ class EmbModel:
         grad = None
         if cal_obj:
 
-            reg = 0.5 * np.sum(model_param['alpha'] ** 2) / sigma2a \
-                 + 0.5 * np.sum(model_param['rho'] ** 2) / sigma2r 
+            reg = 0.5 * np.sum(model_param['alpha'] ** 2, 1) / sigma2a \
+                 + 0.5 * np.sum(model_param['rho'] ** 2, 1) / sigma2r 
 
             if model_config['downzero'] and model_config['use_obscov']:
                 reg = reg + 0.5 * np.sum(model_param['beta'] ** 2) / sigma2b
     
-            obj = reg  + res['obj']
+            obj = reg * res['scale_weight'] + res['obj']
         
         if cal_grad:
             # stack parameters into a vector
@@ -331,10 +331,9 @@ class EmbModel:
                 temp_param['rho0'] = np.zeros_like(temp_param['rho0']) 
         
             grad_reg = self.__collect_param(temp_param, model_config)
-            grad = res['grad'] + grad_reg
+            grad = res['grad'] + grad_reg * res['scale_weight']
     
         return dict(obj=obj, reg=reg, grad=grad, llh=res['llh'], pos_llh=res['pos_llh'])
-
 
     def learn(self, counts, context, obs_cov):
         
