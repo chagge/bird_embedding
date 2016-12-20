@@ -73,7 +73,7 @@ if __name__ == "__main__":
     pkl_file = open(filename, 'rb') 
     output = pickle.load(pkl_file)
     model = output['emb_model'].model_param
-    vector = model['alpha']
+    vector = model['rho']
 
 
 
