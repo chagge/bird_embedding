@@ -11,7 +11,7 @@ import numpy as np
 
 if __name__ == '__main__':
     
-    folder = '../data/subset_pa_201407/'
+    folder = '../data/subset_pa/'
 
     print 'Reading in data ...'
     

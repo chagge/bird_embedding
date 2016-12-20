@@ -64,7 +64,7 @@ def denoise(x):
 
 if __name__ == '__main__':
     
-    folder = '../data/subset_201407/'
+    folder = '../data/subset_pa/'
 
     print 'Reading in data ...'
     

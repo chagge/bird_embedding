@@ -23,7 +23,7 @@ def read_pemb_file(filename):
 
 if __name__ == "__main__":
 
-    data_dir = '../data/subset_pa_201407/'
+    data_dir = '../data/subset_pa/'
     print "use data in directory " + data_dir
     for fold in xrange(0, 10):
     

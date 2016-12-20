@@ -22,13 +22,14 @@ if __name__ == '__main__':
     
     # selection conditions for columns
     # shown in the variable "flag"
+
+    df_list = []
     
-    for year in xrange(2014, 2015):
+    for year in xrange(2002, 2015):
         data_path = '../data/ebird/' + str(year) + '/checklists.csv' 
         print 'Data path is ' + data_path
     
         df = pandas.read_csv(data_path, sep=',', header='infer', na_values=['X', '?'], na_filter=True, keep_default_na=True)
-    
     
         # if only take obs from day 180 to day 209 
         #flag = (180 <= df['DAY']) & (df['DAY'] < 210) 
@@ -42,13 +43,14 @@ if __name__ == '__main__':
         #df = df.loc[flag, ['LATITUDE','LONGITUDE','DAY','TIME', 'COUNT_TYPE', 'EFFORT_HRS', 'EFFORT_DISTANCE_KM', 
         #                 'EFFORT_AREA_HA', 'NUMBER_OBSERVERS', 'PRIMARY_CHECKLIST_FLAG', 'Contopus_virens']]
     
-    
         # if to take all species 
-        df = df.loc[flag, :]
+        df_list.append(df.loc[flag, :])
+        print(type(df_list[0]))
 
         #df.to_csv('../data/obs_subset_y' + str(year) + '_d180-210_ewp' + '.csv')
-        df.to_csv('../data/subset_pa_201407/obs_subset.csv')
         #df.to_csv('../data/subset_07/obs_subset.csv')
 
+    df_all = pandas.concat(df_list)
+    df_all.to_csv('../data/subset_pa/obs_subset.csv')
 
 
