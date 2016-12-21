@@ -5,34 +5,17 @@ import os
 
 sys.path.append('../prepare_data/')
 from extract_counts import load_sparse_coo
-
 sys.path.append('../infer/')
 from emb_model import EmbModel 
-
+sys.path.append('../util/')
+from util import config_to_filename 
 
 import scipy.sparse as sparse
 from extract_counts import load_sparse_coo
 from separate_sets import read_pemb_file
 
 
-def config_to_filename(model_config, fold):
-
-    filename = ('experiment' + '_k' + str(int(model_config['K']))
-                             + '_lf' + model_config['link_func']  
-                             + '_sc' + str(int(model_config['scale_context'])) 
-                             + '_nc' + str(int(model_config['normalize_context'])) 
-                             + '_it' + str(int(model_config['intercept_term'])) 
-                             + '_dz'  + str(int(model_config['downzero'])) 
-                             + '_pl'  + str(int(model_config['zeroweight'])) 
-                             + '_uo' + str(int(model_config['use_obscov'])) 
-                             + '_sa' + str(int(model_config['sigma2a'])) 
-                             + '_sb' + str(int(model_config['sigma2b'])) 
-                             + '_f' + str(fold) + '.pkl')
-
-    return filename
-
-
-def fold_learn(K=10, sigma2ar=1, sigma2b=1, 
+def fold_learn(cont_train=True, K=10, sigma2ar=1, sigma2b=1, 
                link_func='exp', intercept_term=True, 
                scale_context=False, normalize_context=True,
                downzero=True, use_obscov=True, zeroweight=1.0, 
@@ -69,8 +52,8 @@ def fold_learn(K=10, sigma2ar=1, sigma2b=1,
 
     print 'The embeddint task has %d tuples, %d species' % (counts_train.shape[0], counts_train.shape[1])
     
-    learn_config = dict(eta=0.002, max_iter=1000000, batch_size=1,  print_niter=5000, min_improve=1e-3, display=1, valid_ind=val_ind)
-    model_config = dict(K=K, sigma2a=sigma2ar, sigma2b=sigma2b, sigma2r=sigma2ar, 
+    learn_config = dict(eta=0.02, max_iter=200000, batch_size=1,  print_niter=5000, min_improve=1e-3, display=1, valid_ind=val_ind)
+    model_config = dict(cont_train=cont_train, K=K, sigma2a=sigma2ar, sigma2b=sigma2b, sigma2r=sigma2ar, 
                         link_func=link_func, intercept_term=intercept_term, 
                         scale_context=scale_context, normalize_context=normalize_context, 
                         downzero=downzero, use_obscov=use_obscov, zeroweight=zeroweight)
@@ -79,9 +62,20 @@ def fold_learn(K=10, sigma2ar=1, sigma2b=1,
     emb_model = EmbModel(config)
     #emb_model.sanity_check = True
 
-    train_log = emb_model.learn(counts_train, context_train, obscov_train)
+    if ('cont_train' in model_config) and model_config['cont_train']:
+        dummy_config = model_config.copy()        
+        dummy_config['cont_train'] = False
+        dummy_config['downzero'] = False 
+        dummy_config['use_obscov'] = False 
+        dummy_config['intercept_term'] = False 
+        fname = data_dir + 'result/' + config_to_filename(dummy_config, fold)
+        loader = pickle.load(open(fname))
+        init_model = loader['emb_model'].model_param
+    else:
+        init_model = None
+
+    train_log = emb_model.learn(counts_train, context_train, obscov_train, init_model)
     test_res = emb_model.test(counts_test, context_test, obscov_test)
-    print 'Test log-likelihood and positive log-likelihood is %.3f and %.3f' % (test_res['llh'], test_res['pos_llh'])
 
     result = dict(train_log=train_log, test_res=test_res, emb_model=emb_model) 
     filename = data_dir + 'result/' + config_to_filename(model_config, fold)
@@ -104,7 +98,7 @@ if __name__ == "__main__":
     rseed = 27
     np.random.seed(rseed)
 
-    fold_learn(K=20, sigma2ar=100, sigma2b=100, 
+    fold_learn(cont_train=True, K=16, sigma2ar=100, sigma2b=100, 
                link_func='softplus', intercept_term=True, 
                scale_context=False, normalize_context=False,
                downzero=True, use_obscov=True, zeroweight=1.0, 

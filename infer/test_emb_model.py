@@ -84,7 +84,6 @@ def test_gradient(counts, context, obs_cov):
                             assert(reld < 1e-5)
                      
 
-
 if __name__ == "__main__":
 
     np.random.seed(6)
@@ -96,7 +95,7 @@ if __name__ == "__main__":
  
 
     test_gradient(counts, context, obs_cov)
-    raise Exception('Stop here')
+    raise Exception('Pass all gradient checks. Stop here')
 
     opt_config = dict(eta=0.005, max_iter=100000,  print_niter=1000, valid_frac=0.1, min_improve=1e-3, display=1)
     model_config = dict(K=10, sigma2a=10, sigma2b=10, sigma2r=10, link_func='exp', intercept_term=True)

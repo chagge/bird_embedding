@@ -26,14 +26,11 @@ def pos95percent(x):
 
 class EmbModel:
     """class of embedding model"""
-    model_config = None 
-    learn_config = None
-    model_param = None 
-    context_scale = None
-
-    sanity_check = False 
-
     def __init__(self, config):
+        self.model_param = None 
+        self.context_scale = None
+        self.sanity_check = False 
+
         self.model_config = config['model_config']
         self.learn_config = config['learn_config']
 
@@ -51,17 +48,18 @@ class EmbModel:
         nspecies = sizes['nspecies']
 
         self.model_param = dict()    
+
         self.model_param['alpha'] = (np.random.rand(nspecies, K) - 0.3) * 1e-1
         self.model_param['rho'] = (np.random.rand(nspecies, K) - 0.3) * 1e-1
 
         if self.model_config['intercept_term']:
-            self.model_param['rho0'] = np.random.rand(nspecies) * 1e0
+            self.model_param['rho0'] = np.zeros(nspecies)
 
         if self.model_config['downzero']:
-            self.model_param['beta0'] = np.random.rand(nspecies) * 1e0
+            self.model_param['beta0'] = np.ones(nspecies) * 10 
             if self.model_config['use_obscov']:
                 nvar = sizes['ncovar'] 
-                self.model_param['beta'] = np.random.rand(nspecies, nvar) * 1e0
+                self.model_param['beta'] = np.zeros((nspecies, nvar))
     
         if self.model_config['scale_context']:
             context_scale = np.ones(nspecies) 
@@ -147,17 +145,6 @@ class EmbModel:
         H0 = R * (np.sum(alpha * rho, axis=1))[None, :]
         H = R.dot(alpha).dot(rho.T) - H0
 
-        # verify that matrix calculation is correct
-        #tempi = 2
-        #tempj = 0
-        #print R.shape
-        #tempc = R[tempi, :]
-        #tempc[tempj] = 0
-        #tempv = tempc.dot(alpha).dot(rho[tempj, :])
-        #print tempv 
-        #print H[tempi, tempj]
-        #assert(np.abs(H[tempi, tempj] - tempv) < 1e-9)
-
         if self.model_config['normalize_context']:
             normalizer = np.sum(R, axis=1)[:, None] - R
             normalizer[normalizer == 0] = 1
@@ -186,7 +173,7 @@ class EmbModel:
         Lamb = Lamb + epsilon
 
         llh = None
-        pos_llh = None
+        ins_llh = None
         grad = None
         obj = None
     
@@ -229,12 +216,14 @@ class EmbModel:
                 Q[counts > 0] = 1
                 Temp = Q * Temp # Temp is gradient of obj w.r.t. H
                 grad_counts = ntuple * nspecies
+                overall_weight = counts.size
             else:
                 Q = np.ones_like(counts)
                 Q[counts == 0] = self.model_config['zeroweight']
                 Temp = Q * Temp 
                 grad_counts = np.sum(Q) 
-
+                overall_weight = counts.size - np.sum(counts == 0) * (1 - self.model_config['zeroweight']) 
+            
             if self.sanity_check:
                 qnan = np.sum(np.isnan(Q))
                 raise Exception('Find %d NaN values in Q! The largest lambda value is %f' % (qnan, np.max(Lamb)))
@@ -286,7 +275,8 @@ class EmbModel:
                 qnan = np.sum(np.isnan(Q))
                 raise Exception('NaN value in gradient! Some intermediate values: #nan in Q is ' + str(qnan))
     
-        return dict(llh=llh, obj=obj, grad=grad, pos_llh=pos_llh, scale_weight=1.0/overall_weight)
+
+        return dict(llh=llh, obj=obj, grad=grad, scale_weight=1.0/overall_weight, ins_llh=ins_llh)
 
 
     def eval_grad(self, counts, context, obs_cov, param, cal_obj=True, cal_grad=True):
@@ -308,14 +298,14 @@ class EmbModel:
         grad = None
         if cal_obj:
 
-            reg = 0.5 * np.sum(model_param['alpha'] ** 2, 1) / sigma2a \
-                 + 0.5 * np.sum(model_param['rho'] ** 2, 1) / sigma2r 
+            reg = 0.5 * np.sum(model_param['alpha'] ** 2) / sigma2a \
+                 + 0.5 * np.sum(model_param['rho'] ** 2) / sigma2r 
 
             if model_config['downzero'] and model_config['use_obscov']:
                 reg = reg + 0.5 * np.sum(model_param['beta'] ** 2) / sigma2b
     
             obj = reg * res['scale_weight'] + res['obj']
-        
+
         if cal_grad:
             # stack parameters into a vector
             temp_param = model_param.copy()
@@ -333,9 +323,9 @@ class EmbModel:
             grad_reg = self.__collect_param(temp_param, model_config)
             grad = res['grad'] + grad_reg * res['scale_weight']
     
-        return dict(obj=obj, reg=reg, grad=grad, llh=res['llh'], pos_llh=res['pos_llh'])
+        return dict(obj=obj, reg=reg, grad=grad, llh=res['llh'], ins_llh=res['ins_llh'])
 
-    def learn(self, counts, context, obs_cov):
+    def learn(self, counts, context, obs_cov, init_model=None):
         
         model_config = self.model_config 
         learn_config = self.learn_config 
@@ -346,15 +336,15 @@ class EmbModel:
         print 'Learning a embedding problem with %d checklists and %d species' % (ntuple, nspecies)
     
         # seperate out a validation set
-        if learn_config.has_key('valid_ind'):
-            valind = learn_config['valid_ind']
-            trind = np.delete(np.arange(ntuple), valind)
-        else: 
-            nval = np.round(ntuple * learn_config['valid_frac'])
-            rindex = np.arange(ntuple)
-            np.random.shuffle(rindex)
-            trind = rindex[nval : ]
-            valind = rindex[0 : nval] 
+
+        rindex = np.arange(ntuple)
+        np.random.shuffle(rindex)
+        trind = rindex
+        #if learn_config.has_key('valid_ind'):
+        #    valind = learn_config['valid_ind']
+        #else: 
+        #    nval = np.round(ntuple * learn_config['valid_frac'])
+        #    valind = rindex[0 : nval] 
         
         has_obscov = model_config['downzero'] and model_config['use_obscov']
         sizes = dict(nspecies=nspecies, ncovar=obs_cov.shape[1]) if has_obscov else dict(nspecies=nspecies)
@@ -367,17 +357,21 @@ class EmbModel:
             self.context_scale = s
             context = context / s[None, :] 
         
-        init_model_param = self.model_param.copy()
+        if init_model != None:
+            self.model_param['alpha'] = init_model['alpha']
+            self.model_param['rho'] = init_model['rho']
 
+        init_model_param = self.model_param.copy()
         model_param = self.model_param
         # get initialized param !!! model_param must be consistent with param_vec
         param_vec = self.__collect_param(model_param, model_config)
     
         # calculate objective before start
-        obscov_val = obs_cov[valind, :] if model_config['use_obscov'] else None
+        #obscov_val = obs_cov[valind, :] if model_config['use_obscov'] else None
         val_llh = np.zeros((learn_config['max_iter'] / learn_config['print_niter'] + 3, 2), dtype=float)
         # store value of the 0-th evaluation
-        val_llh[0, 1] = self.eval_grad(counts[valind, :], context[valind, :], obscov_val, model_param, cal_obj=True, cal_grad=False)['llh']
+        #val_llh[0, 1] = self.eval_grad(counts[valind, :], context[valind, :], obscov_val, model_param, cal_obj=True, cal_grad=False)['llh']
+        val_llh[0, 1] = self.eval_grad(counts, context, obs_cov, model_param, cal_obj=True, cal_grad=False)['llh']
     
         best_param = model_param 
         best_llh = val_llh[0, 1]
@@ -405,28 +399,26 @@ class EmbModel:
             
             # print opt objective on the validation set
             if it % learn_config['print_niter'] == 0:
-                res = self.eval_grad(counts[valind, :], context[valind, :], obscov_val, model_param, dict(cal_obj=True, cal_grad=False))
-                print 'validation obj and llh are  ' + str(res['obj']) + '\t' + str(res['llh'])
+                res = self.eval_grad(counts, context, obs_cov, model_param, dict(cal_obj=True, cal_grad=False))
+                print 'training obj and llh are  ' + str(res['obj']) + '\t' + str(res['llh'])
     
-                if res['llh'] > best_llh:
-                    best_llh = res['llh']
-                    best_param = model_param
+                #if res['llh'] > best_llh:
+                #    best_llh = res['llh']
+                #    best_param = model_param
     
                 ibat = it / learn_config['print_niter']
                 val_llh[ibat, 0] = it
                 val_llh[ibat, 1] = res['llh']
     
-                if ibat >= 3:
-                    perf1 = np.mean(val_llh[ibat - 3 : ibat - 1, 1])
-                    perf2 = np.mean(val_llh[ibat - 1 : ibat + 1, 1])
-                    if (perf2 - perf1) < (np.abs(perf1) * learn_config['min_improve']):
-                        break
+                #if ibat >= 3:
+                #    perf1 = np.mean(val_llh[ibat - 3 : ibat - 1, 1])
+                #    perf2 = np.mean(val_llh[ibat - 1 : ibat + 1, 1])
+                #    if (perf2 - perf1) < (np.abs(perf1) * learn_config['min_improve']):
+                #        break
                     
-        res = self.eval_grad(counts[valind, :], context[valind, :], obscov_val, model_param, cal_obj=True, cal_grad=False)
-        if res['llh'] > best_llh:
-            best_llh = res['llh']
-            best_param = model_param 
-    
+        best_param = model_param 
+
+        res = self.eval_grad(counts, context, obs_cov, model_param, cal_obj=True, cal_grad=False)
         val_llh[ibat + 1, 0] = it 
         val_llh[ibat + 1, 1] = res['llh']
         val_llh = val_llh[0 : ibat + 2, :]
@@ -443,7 +435,7 @@ class EmbModel:
 
         res = self.eval_grad(counts, context, obs_cov, self.model_param, cal_obj=True, cal_grad=False)
 
-        return res
+        return res['ins_llh']
 
 
 
