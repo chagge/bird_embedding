@@ -98,7 +98,7 @@ def bar_plot(mean, std, legend_names):
 
 if __name__ == "__main__":
 
-    data_dir = '../data/subset_pa_201407/'
+    data_dir = '/rigel/dsi/users/ll3105/bird_data/subset_pa_201407/'
 
     base_config = dict(K=10, sigma2a=100, sigma2r=100, sigma2b=100, link_func='exp', intercept_term=False, 
                         scale_context=False, normalize_context=False, downzero=False, use_obscov=False, zeroweight=1.0)
