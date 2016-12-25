@@ -19,7 +19,7 @@ def fold_learn(cont_train=True, K=10, sigma2ar=1, sigma2b=1,
                link_func='exp', intercept_term=True, 
                scale_context=False, normalize_context=True,
                downzero=True, use_obscov=True, zeroweight=1.0, 
-               data_dir='../data/subset_pa/', fold=0):
+               data_dir='/rigel/dsi/users/ll3105/bird_data/subset_pa/', fold=0):
 
     fold_dir = data_dir + 'data_folds/' + str(fold) + '/'
 
@@ -52,7 +52,7 @@ def fold_learn(cont_train=True, K=10, sigma2ar=1, sigma2b=1,
 
     print 'The embeddint task has %d tuples, %d species' % (counts_train.shape[0], counts_train.shape[1])
     
-    learn_config = dict(eta=0.02, max_iter=200000, batch_size=1,  print_niter=5000, min_improve=1e-3, display=1, valid_ind=val_ind)
+    learn_config = dict(eta=0.25, max_iter=500000, batch_size=1,  print_niter=5000, min_improve=1e-3, display=1, valid_ind=val_ind)
     model_config = dict(cont_train=cont_train, K=K, sigma2a=sigma2ar, sigma2b=sigma2b, sigma2r=sigma2ar, 
                         link_func=link_func, intercept_term=intercept_term, 
                         scale_context=scale_context, normalize_context=normalize_context, 
@@ -102,6 +102,6 @@ if __name__ == "__main__":
                link_func='softplus', intercept_term=True, 
                scale_context=False, normalize_context=False,
                downzero=True, use_obscov=True, zeroweight=1.0, 
-               data_dir='../data/subset_pa/', fold=0)
+               data_dir='/rigel/dsi/users/ll3105/bird_data/subset_pa/', fold=0)
 
 
