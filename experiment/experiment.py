@@ -13,13 +13,14 @@ from util import config_to_filename
 import scipy.sparse as sparse
 from extract_counts import load_sparse_coo
 from separate_sets import read_pemb_file
+import cPickle as pkl
 
 
 def fold_learn(cont_train=True, K=10, sigma2ar=1, sigma2b=1, 
                link_func='exp', intercept_term=True, 
                scale_context=False, normalize_context=True,
                downzero=True, use_obscov=True, zeroweight=1.0, 
-               data_dir='/rigel/dsi/users/ll3105/bird_data/subset_pa/', fold=0):
+               data_dir='/rigel/dsi/users/ll3105/bird_data/movie/', fold=0, train_file=None):
 
     fold_dir = data_dir + 'data_folds/' + str(fold) + '/'
 
@@ -44,7 +45,12 @@ def fold_learn(cont_train=True, K=10, sigma2ar=1, sigma2b=1,
     #val_ind = np.arange(counts_train.shape[0], counts_train.shape[0] + counts_valid.shape[0])
     val_ind = np.random.choice(np.arange(0, counts_train.shape[0] + counts_valid.shape[0]), size=500, replace=False)
 
-    counts_train = np.r_[counts_train, counts_valid]
+    if train_file == None:
+        counts_train = np.r_[counts_train, counts_valid]
+    else:
+        print('Using training file: ' + train_file)
+        counts_train = pkl.load(open(fold_dir + train_file, 'rb'))
+
     obscov_train = np.r_[obscov_train, obscov_valid]
 
     context_train = counts_train
@@ -52,7 +58,7 @@ def fold_learn(cont_train=True, K=10, sigma2ar=1, sigma2b=1,
 
     print 'The embeddint task has %d tuples, %d species' % (counts_train.shape[0], counts_train.shape[1])
     
-    learn_config = dict(eta=0.25, max_iter=500000, batch_size=1,  print_niter=5000, min_improve=1e-3, display=1, valid_ind=val_ind)
+    learn_config = dict(eta=0.3, max_iter=500000, batch_size=1,  print_niter=5000, min_improve=1e-3, display=1, valid_ind=val_ind)
     model_config = dict(cont_train=cont_train, K=K, sigma2a=sigma2ar, sigma2b=sigma2b, sigma2r=sigma2ar, 
                         link_func=link_func, intercept_term=intercept_term, 
                         scale_context=scale_context, normalize_context=normalize_context, 
@@ -74,11 +80,18 @@ def fold_learn(cont_train=True, K=10, sigma2ar=1, sigma2b=1,
     else:
         init_model = None
 
+    if train_file != None:
+        prefix = train_file[0:8] + '_'
+        print(prefix)
+    else:
+        prefix = ''
+
+
     train_log = emb_model.learn(counts_train, context_train, obscov_train, init_model)
     test_res = emb_model.test(counts_test, context_test, obscov_test)
 
     result = dict(train_log=train_log, test_res=test_res, emb_model=emb_model) 
-    filename = data_dir + 'result/' + config_to_filename(model_config, fold)
+    filename = data_dir + 'result/' + prefix + 'iter500k' + config_to_filename(model_config, fold)
 
     # create folder if not exist
     if not os.path.exists(os.path.dirname(filename)):
@@ -102,6 +115,6 @@ if __name__ == "__main__":
                link_func='softplus', intercept_term=True, 
                scale_context=False, normalize_context=False,
                downzero=True, use_obscov=True, zeroweight=1.0, 
-               data_dir='/rigel/dsi/users/ll3105/bird_data/subset_pa/', fold=0)
+               data_dir='/rigel/dsi/users/ll3105/bird_data/movie/', fold=0)
 
 
